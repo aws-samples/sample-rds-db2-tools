@@ -112,11 +112,13 @@ Our validation tool performs comprehensive pre-migration checks across multiple 
 
 ### **Local Interactive Mode Usage**
 
+Direct execute of the tool
 ```bash
-# Direct execute of the tool
 curl -sL https://bit.ly/precheckdb2migration | bash -s -- --verbose
+```
 
-# Download and execute
+Download and execute
+```bash
 curl -sL https://bit.ly/precheckdb2migration -o db2_migration_prereq_check.sh
 chmod +x db2_migration_prereq_check.sh
 ./db2_migration_prereq_check.sh --verbose
@@ -124,12 +126,27 @@ chmod +x db2_migration_prereq_check.sh
 
 ### **Remote Mode Usage**
 
+The environment variable `DBNAME` must be the local catalogued database name or the DSN name used in the `db2dsdriver.cfg` file.
+
+Direct execute of the tool. 
+
 ```bash
 # Set environment variables for remote connection
 export DB2USER=myuser
 export DB2PASSWORD=mypassword
 export DBNAME=mydatabase
+curl -sL https://bit.ly/precheckdb2migration | bash -s -- --verbose
+```
 
+Download and execute
+
+```bash
+curl -sL https://bit.ly/precheckdb2migration -o db2_migration_prereq_check.sh
+chmod +x db2_migration_prereq_check.sh
+
+export DB2USER=myuser
+export DB2PASSWORD=mypassword
+export DBNAME=mydatabase
 # Run validation against remote database
 ./db2_migration_prereq_check.sh --verbose
 
@@ -351,7 +368,7 @@ db2 -x "SELECT count(*) FROM SYSCAT.INVALIDOBJECTS"
 
 #### **DB2 Update Level**
 ```bash
-# Run database update utility
+# Run database update utility on the Db2 server
 db2updv115 -d SAMPLE
 ```
 
@@ -704,17 +721,29 @@ db2 "SELECT * FROM TABLE(MON_GET_DATABASE(-1))"
 
 #### **Post-Restore Validation**
 ```sql
--- Verify database integrity
-db2 "call SYSPROC.ADMIN_CMD('RUNSTATS ON DATABASE')"
+-- Make sure to run runstats on all tables and indexes
+DB_NAME="YOUR_DATABASE_NAME"
+SCHEMA_NAME="YOUR_SCHEMA_NAME"
+DB2USER="<master user name>"
+DB2PASSWORD="<master user password>"
+
+# Connect to Amazon RDS for Db2 database from a Db2 client
+db2 "connect to $DB_NAME user <masterusername> using <masteruserpassword>"
+
+# Get a list of all tables in the specified schema
+db2 -x "SELECT TABNAME FROM SYSCAT.TABLES WHERE TABSCHEMA = '$SCHEMA_NAME' AND TYPE = 'T'" > tableslist.txt
+TABLES=$(cat tableslist.txt)
+for TABLE in $TABLES
+do
+  echo "Running RUNSTATS on table $SCHEMA_NAME.$TABLE and its indexes..."
+  db2 "RUNSTATS ON TABLE $SCHEMA_NAME.$TABLE WITH DISTRIBUTION AND INDEXES ALL"
+done
 
 -- Check database configuration
 db2 "call rdsadmin.show_configuration()"
 
 -- Validate critical objects
 db2 "SELECT COUNT(*) FROM SYSCAT.INVALIDOBJECTS"
-
--- Test application connectivity
-db2 "SELECT CURRENT TIMESTAMP FROM SYSIBM.SYSDUMMY1"
 ```
 
 ### **Troubleshooting Restore Issues**
