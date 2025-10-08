@@ -30,8 +30,7 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 ## 🛠️ Tools & Scripts
 
 ### Migration Tools
-- **Coming Soon**: Scripts for automated DB2 migration assessment
-- **Coming Soon**: Data validation utilities
+- **[Db2 Migration Prereqcheck tool](tools/migrationprecheck/)**: Scripts for checking if the self-managed Db2 database on Linux is ready for migration to Amazon RDS for Db2.
 
 ### Performance Tools
 - **Coming Soon**: HammerDB configuration templates
