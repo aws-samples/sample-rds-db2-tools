@@ -1,17 +1,12 @@
-# Restore databases effortlessly in Amazon RDS for Db2
+# Restore self-managed Db2 Linux databases in Amazon RDS for Db2
 
 ## Introduction
+As more organizations migrate their self-managed Db2 Linux-based workloads to  [Amazon Relational Database Service (Amazon RDS) for DB2](https://aws.amazon.com/rds/db2/), , migration teams are learning that preparation is key to avoiding project delays. Common roadblocks include outdated database versions, invalid objects, and improper storage configurations that surface during the  migration process. 
 
-Migrating on-premises DB2 Linux-based databases to [Amazon Relational Database Service (Amazon RDS)](https://aws.amazon.com/rds/db2/) for DB2 is a straightforward process that might encounter challenges due to overlooked prerequisites, resulting in project delays. These issues arise from various factors, such as outdated database versions, invalid objects, improper storage configurations, and incomplete database states. To address these challenges and streamline the migration process, we present a DB2 Migration Prerequisites Validation Tool. This tool conducts comprehensive pre-migration checks and provides suggestions to make sure databases are adequately prepared for a successful migration to the RDS environment.
-
-we discuss the features of this tool and how to use it to restore databases in Amazon RDS for DB2.
-
-## Challenges with database restores
-
-We have identified several recurring issues that are preventing database restores from self-managed Linux Db2 to Amazon RDS for Db2 from succeeding. We have compiled these findings into a tool that you can use to proactively address these issues. By employing this tool, our objective is to substantially enhance the success rate, minimize delays, and optimize the time and resources allocated during the migration process.
+In this post, we introduce a a [DB2 Migration Prerequisites Validation Tool](https://github.com/aws-samples/sample-rds-db2-tools/tree/main/tools/migrationprecheck) that catches these issues before they impact your timeline. This tool performs thorough pre-migration validation and guides you through the necessary preparations for migrating self-managed Db2 on Linux to Amazon RDS for Db2.
 
 ## Solution overview
-Our DB2 Migration Prerequisites Validation Tool performs comprehensive pre-migration assessments across various validation categories to ascertain migration readiness. Upon identifying any discrepancies, the tool offers specific, actionable recommendations for remediation. These detailed insights facilitate database administrators and migration teams in systematically addressing potential issues. The identified problems must be resolved prior to creating the final on-premises DB2 backup, which will be used for restoration in Amazon RDS for DB2. 
+The Db2 Migration Prerequisites Validation Tool performs comprehensive pre-migration assessments across various validation categories to ascertain migration readiness. Upon identifying any discrepancies, the tool offers specific, actionable recommendations for remediation. These detailed insights facilitate database administrators and migration teams in systematically addressing potential issues. The identified problems must be resolved prior to creating the final on-premises Db2 backup, which will be used for restoration in Amazon RDS for Db2. 
 
 This proactive approach substantially diminishes the likelihood of migration failures to provide a seamless transition to the RDS environment. For more details on the one-time migration process from self-managed Db2 on Linux to Amazon RDS for Db2, refer to [Migrating from Linux to Linux for Amazon RDS for Db2](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/db2-one-time-migration-linux.html).
 
@@ -25,6 +20,8 @@ The tool offers the following key features:
 - AIX, Linux on x86, Linux on POWER
 - Compatible with older bash versions
 - No external dependencies beyond standard Unix tools
+- For non-Linux platforms or other migration options, consider using [Db2 Migration Tooling (Db2MT)](https://github.com/IBM/db2-db2mt)
+- For more details about migration, refer to [Migrate from self-managed Db2 to Amazon RDS for Db2 using AWS DMS and Data migration strategies to Amazon RDS for Db2](https://aws.amazon.com/blogs/database/data-migration-strategies-to-amazon-rds-for-db2/)
 
 ### **Multiple Operation Modes**
 - **Interactive Mode**: Guided experience with user prompts
@@ -44,10 +41,10 @@ The tool offers the following key features:
 
 You can use the tool in the following scenarios:
 
-- **Pre-migration planning** – Run the tool during the planning phase to identify potential issues early and allocate time for remediation.
-- **Migration readiness assessment** – Use the tool for final validation before initiating the migration process to Amazon RDS for DB2.
+- **Pre-migration planning** – To identify potential issues early and allocate time for remediation.
+- **Migration readiness assessment** – To perform a final validation before initiating the migration process to Amazon RDS for Db2.
 - **After fixpack upgrades** – Validate databases after applying DB2 fixpacks to confirm proper update completion.
-- **Before taking final DB2 backups** – Before taking the final backup to restore to Amazon RDS for DB2, run this tool to confirm readiness. A clean output can safeguard against restore failures in Amazon RDS for DB2. We provide general guidance on using the database backup command later in this post.
+- **Before taking final DB2 backups** – To confirm readiness before restoring to Amazon RDS for Db2, a clean output can safeguard against restore. We provide general guidance on using the database backup command later in this post.
 
 
 ## How to use the tool
@@ -74,7 +71,7 @@ In an interactive flow, the tool completes the following steps:
 2. List available instances.
 3. Identify current instance for validation. 
 4. Discover local databases in current instance.
-5. Validate remote database.
+5. Validate remote databases when you cannot run the script on the Db2 server.
 6. Allow database selection for validation. 
 7. Execute comprehensive validation checks. 
 8. Generate a detailed report.
@@ -94,22 +91,6 @@ Our validation tool performs comprehensive pre-migration checks across multiple 
 - **Database Inventory Analysis**
 
 
-## How to Use the Tool
-
-### **Prerequisites**
-
-#### **Local Mode**
-- DB2 instance must be running and accessible
-- User must have SYSADM or SYSMAINT authority
-- DB2 environment properly sourced (`. ~/sqllib/db2profile`)
-- Run as the DB2 instance user (e.g., `db2inst1`)
-
-#### **Remote Mode**
-- DB2 client must be installed and configured
-- Network connectivity to remote DB2 server
-- Valid DB2 user credentials with DBADM or SYSMAINT privileges
-- Database must be cataloged or DSN entries available in db2dsdriver.cfg file
-
 ### **Local Interactive Mode Usage**
 
 Direct execute of the tool
@@ -125,8 +106,6 @@ chmod +x db2_migration_prereq_check.sh
 ```
 
 ### **Remote Mode Usage**
-
-The environment variable `DBNAME` must be the local catalogued database name or the DSN name used in the `db2dsdriver.cfg` file.
 
 Direct execute of the tool. 
 
@@ -153,6 +132,8 @@ export DBNAME=mydatabase
 # Alternative: Set variables inline
 DB2USER=myuser DB2PASSWORD=mypassword DBNAME=mydatabase ./db2_migration_prereq_check.sh
 ```
+
+Note: The `DBNAME` environment variable used for remote connection must be either locally catalogued remote database name or name of the DSN entry used in the `db2dsdriver.cfg` file.
 
 **Local Interactive Flow:**
 1. Tool displays DB2 version information
@@ -236,36 +217,41 @@ done
 ```
 [SUCCESS] [INDOUBT_TRANSACTIONS] PASS - No in-doubt transactions found (0)
 ```
-**SQL Query**: `SELECT NUM_INDOUBT_TRANS FROM TABLE(MON_GET_TRANSACTION_LOG(NULL))`
-**What it means**: Uncommitted transactions that could cause restore failures.
+- **SQL Query**: `SELECT NUM_INDOUBT_TRANS FROM TABLE(MON_GET_TRANSACTION_LOG(NULL))`
+- **CLP Command**: `db2 list indoubt transactions with prompting`
+- **What it means**: An indoubt transaction is one that has been prepared but not yet committed or rolled back. All transactions must be committed or rolled back.
 
 ### **4. Invalid Objects Validation**
 ```
 [  ERROR] [INVALID_OBJECTS] FAIL - Found 5 invalid object(s)
 [WARNING] [INVALID_OBJECTS] RECOMMENDATION: Run: db2 "call SYSPROC.ADMIN_REVALIDATE_DB_OBJECTS()" (may need multiple runs)
 ```
-**SQL Query**: `SELECT 'COUNT:' || COUNT(*) FROM SYSCAT.INVALIDOBJECTS`
-**Resolution**: Execute the recommended stored procedure until count reaches zero.
+- **SQL Query**: `SELECT 'COUNT:' || COUNT(*) FROM SYSCAT.INVALIDOBJECTS`
+- **SQL Command**: `: db2 "call SYSPROC.ADMIN_REVALIDATE_DB_OBJECTS()"`
+- **Resolution**: Execute the recommended stored procedure until count reaches zero.
 
 ### **5. Tablespace State Check**
 ```
 [SUCCESS] [TABLESPACE_STATE] PASS - All tablespaces are in NORMAL state
 ```
-**What it checks**: Ensures all tablespaces are in NORMAL state, not in backup, rollforward, or other transitional states.
+- **What it checks**: Ensures all tablespaces are in NORMAL state, not in backup, rollforward, or other transitional states.
+- **Recommendation**: There are over 20 different tablespace states. Take corrective action accordingly. Refer to the IBM [documentation](https://www.ibm.com/docs/en/db2/12.1.0?topic=spaces-table-space-states) detailing different tablespace states.
 
 ### **6. Non-Fenced Routines Detection**
 ```
 [  ERROR] [NON_FENCED_ROUTINES] FAIL - Found 3 non-fenced user routine(s)
 [WARNING] [NON_FENCED_ROUTINES] RECOMMENDATION: Review and fence user routines before migration
 ```
-**What it checks**: Identifies user-created routines that run in non-fenced mode, which may not be supported in RDS.
+- **What it checks**: Identifies user-created routines that run in non-fenced mode, which are not supported in RDS.
+- **Recommendation**: Non-fenced routines are not permitted in Amazon RDS for Db2. Convert all the routines to fenced.
 
 ### **7. AutoStorage Configuration Check**
 ```
 [SUCCESS] [AUTOSTORAGE] PASS - Found 2 storage path(s)
 ```
-**SQL Query**: `SELECT TRIM(COUNT(*)) FROM TABLE(ADMIN_GET_STORAGE_PATHS('', -1))`
-**Requirement**: At least one storage group must exist for RDS compatibility.
+- **SQL Query**: `SELECT TRIM(COUNT(*)) FROM TABLE(ADMIN_GET_STORAGE_PATHS('', -1))`
+- **Requirement**: At least one storage group must exist for RDS compatibility.
+- **Recommendation**: `db2 "CREATE STOGROUP <name> ON '<PATHname>'"`
 
 ### **8. Database Configuration Validation**
 ```
@@ -285,16 +271,29 @@ done
 [SUCCESS] [LOG_CONFIG] PASS - Log configuration valid for archived logging (total logs: 25 ≤ 4096)
 ```
 **Validation Rules**:
-- Non-archived logging: LOGPRIMARY + LOGSECOND ≤ 254
-- Archived logging: LOGPRIMARY + LOGSECOND ≤ 4096
+- Non-archived logging: `LOGPRIMARY + LOGSECOND ≤ 254`
+- Archived logging: `LOGPRIMARY + LOGSECOND ≤ 4096`
 
-### **10. Federation Compatibility Check**
+### **10. Database size Analysis**
+
+**Database sizing**:
+- **Recommendation**: Refer to the RDS_SIZING_TIER variable in `db2_migration_prereq_report_yyyymmdd_hhmmss.log`.
+
+### **11. Federation Compatibility Check**
 ```
 [WARNING] [FEDERATION] WARNING - Some federation wrappers may not be supported by RDS DB2
 [   INFO] [FEDERATION] RECOMMENDATION: Review federation configuration - only DB2 LUW, iSeries, and z/OS are supported
 ```
 **Supported**: `libdb2drda.so`, `libdb2rcodbc.so`
 **Not Supported**: Sybase, Informix, Teradata wrappers
+
+### **12. Java Stored Procedures**
+- If JAR files are defined in your database (`sysibm.sysjarcontents`), then add JAR files to the RDS for Db2 instance (if needed).
+- **Recommendation**:
+  - **Install**: `call sqlj.install_jar('jar-url', 'jar-id')` → Example: `call sqlj.install_jar('file:/home/rdsdb/Common.jar', 'COMMON')`
+  - **Replace**: `call sqlj.replace_jar(‘jar-url’, ‘jar-id’)` → Example: `call sqlj.install_jar('file:/home/rdsdb/Common.jar', 'COMMON')`
+  - **Remove**: `call “sqlj.remove_jar(‘jar-id’ )` → Example: `call sqlj.remove_jar('COMMON')`
+  
 
 ## Reading and Acting on Reports
 
@@ -367,6 +366,10 @@ db2 -x "SELECT count(*) FROM SYSCAT.INVALIDOBJECTS"
 ```
 
 #### **DB2 Update Level**
+- Make sure you’re using the latest Amazon RDS for Db2 software to create an RDS for Db2 instance. IBM has a [documented problem](https://www.ibm.com/mysupport/s/defect/aCIKe0000004DBZOA2/dt381784?language=en_US) in using the `db2updv115` tool causing an Db2 instance crash, and the fix is available in the Amazon RDS for Db2 software latest release. 
+- This is one of the most common RDS Db2 restore failures.
+There is not a good way to validate if db2updv115 tool was run on the database.
+
 ```bash
 # Run database update utility on the Db2 server
 db2updv115 -d SAMPLE
@@ -818,8 +821,13 @@ When using the database backup command, consider the following best practices:
 
 - Amazon RDS for Db2 uses [Amazon Simple Storage Service](http://aws.amazon.com/s3) (Amazon S3) streaming capabilities to restore the database using parallel streams. Amazon S3 streaming is most effective when dealing with multi-part files of the database backup image. For instance, the command `db2 backup database <dbname> to /backup` will generate a single image of the database, which might not be optimal from a performance standpoint. Instead, use multiple locations in the command, such as `db2 backup database to /backup, /backup, /backup, /backup, /backup`. This example demonstrates that the database backup operation will be executed in parallel, resulting in the database image being divided into five parts, each labeled as `.001`, `.002`, `.003`, `.004`, and `.005`.
 - Consider employing multi-part backup even for smaller databases. Determine the number of database locations based on your Linux machine’s CPU and memory capabilities. In cases of uncertainty, it is advisable to use 20 locations.
-- Consider using Db2 backup directly to Amazon S3 if you have connectivity from self-managed Db2 to the AWS Region’s network. To copy database multi-part images to Amazon S3, you must create a bucket in your account with the necessary privileges. Use this bucket to create a [Db2 storage access alias](https://www.ibm.com/docs/en/db2/11.5.x?topic=commands-catalog-storage-access). 
-- Use the storage alias in the backup command to directly write database backup images to Amazon S3. For instance, if the storage alias created is `db2S3`, use the command `db2 backup database <dbname> to DB2REMOTE://db2S3, DB2REMOTE://db2S3, DB2REMOTE://db2S3, DB2REMOTE://db2S3, DB2REMOTE://db2S3`. This command will facilitate splitting database multi-part images into five parts in your S3 bucket.
+- Consider using Db2 backup directly to Amazon S3 if you have connectivity from self-managed Db2 to the AWS Region’s network. To copy database multi-part images to Amazon S3, you must create a bucket in your account with the necessary privileges. Use this bucket to create a [Db2 storage access alias](https://www.ibm.com/docs/en/db2/11.5.x?topic=commands-catalog-storage-access).
+  - Considerations for creating storage alias:
+    - If using Db2 on EC2, grant proper IAM role to access the Amazon S3 bucket and then do not specify `USER`, `PASSWORD` or `TOKEN` in the create storage alias command. Example command: `db2 "CATALOG STORAGE ACCESS ALIAS <aliasName> VENDOR S3 SERVER https://s3.<region>.amazonaws.com" CONTAINER <container-name> DBUSER <masterUserName>`
+    - If using self-manage Db2, you can get the AWS CLI credentials and create the storage alias.
+      - **Using log-term credentials:**   `db2 "CATALOG STORAGE ACCESS ALIAS <aliasName> VENDOR S3 SERVER s3.<region>.amazonaws.com USER $AWS_ACCESS_KEY_ID PASSWORD $AWS_SECRET_ACCESS_KEY CONTAINER <container-name> DBUSER <masterUserName>"`
+      - **Using short-term credentials:** `db2 "CATALOG STORAGE ACCESS ALIAS <aliasName> VENDOR S3 SERVER s3.<region>.amazonaws.com USER $AWS_ACCESS_KEY_ID PASSWORD $AWS_SECRET_ACCESS_KEY CONTAINER <container-name> DBUSER <masterUserName> TOKEN $AWS_SESSION_TOKEN"`
+- Use the storage alias in the backup command to directly write database backup images to Amazon S3. For instance, if the storage alias created is `db2S3`, use the command `db2 backup database <dbname> to DB2REMOTE://db2S3, DB2REMOTE://db2S3, DB2REMOTE://db2S3, DB2REMOTE://db2S3, DB2REMOTE://db2S3`. This command will split database backup images into five parts in your S3 bucket.
 
 
 ## General guidance on using database restore command
@@ -841,15 +849,14 @@ The source code of this tool is available in the [GitHub](https://github.com/aws
 
 ## Conclusion
 
-The enhanced DB2 Migration Prerequisites Validation Tool, combined with RDS for DB2's advanced restore capabilities including S3 streaming, provides a comprehensive solution for effortless database migrations. Key benefits include:
+The Db2 Migration Prerequisites Validation Tool significantly reduces migration failures by identifying and addressing common issues before they impact your migration timeline. By incorporating this tool into your migration workflow, you can achieve the following:
 
-- **Comprehensive Validation**: Complete prerequisite checking with detailed JSON inventory
-- **Flexible Restore Options**: Choose between offline and online restore based on requirements  
-- **Optimized Performance**: S3 streaming reduces storage needs and improves restore speed
-- **Multi-Database Support**: Handle complex environments with multiple databases
-- **Cross-Platform Compatibility**: Works on AIX, Linux x86, and Linux POWER
+- **Reduce migration risk**: Identify issues early in the process
+- **Save time**: Avoid failed restore operations and troubleshooting  
+- **Improve success rate**: Make sure databases are properly prepared
+- **•Maintain documentation**: Keep detailed validation records
 
-By following this guide and utilizing these tools, you can achieve reliable, efficient database migrations to Amazon RDS for DB2 with minimal downtime and maximum success rates.
+Regular use of this tool as part of your Db2 maintenance and migration processes can help facilitate smooth, successful migrations to Amazon RDS for Db2.
 
 ## Additional Resources
 
