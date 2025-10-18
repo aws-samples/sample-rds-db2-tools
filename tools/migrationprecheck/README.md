@@ -862,7 +862,7 @@ Regular use of this tool as part of your Db2 maintenance and migration processes
 
 To learn more about Amazon RDS for Db2 and migration strategies, refer to the following resources:
 
--	**[Amazon RDS for Db2 User Guide](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Db2.html)**
+- **[Amazon RDS for Db2 User Guide](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Db2.html)**
 - **[AWS RDS for DB2 Documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/db2-sp-managing-databases.html)**
 -	**[Data migration strategies to Amazon RDS for Db2](https://aws.amazon.com/blogs/database/data-migration-strategies-to-amazon-rds-for-db2/)**
 - **[DB2 Migration Best Practices](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/db2-one-time-migration-linux.html)**
