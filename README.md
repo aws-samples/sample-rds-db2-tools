@@ -29,6 +29,9 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 
 ## 🛠️ Tools & Scripts
 
+### Install Db2 client for Amazon RDS for Db2
+- **[Install Db2 driver in AWS Cloud Shell](tools/db2client/)**: Script for installing Db2 runtime client in either AWS CloudShell or in Amazon EC2
+
 ### Migration Tools
 - **[Db2 Migration Prereqcheck tool](tools/migrationprecheck/)**: Scripts for checking if the self-managed Db2 database on Linux is ready for migration to Amazon RDS for Db2.
 
