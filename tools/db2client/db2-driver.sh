@@ -127,6 +127,7 @@ declare -a MASTER_USER_PASSWORDS=()
 S3_BUCKET_URI=""
 SCRIPT_URI=""
 EXFMT_URI="s3://aws-blogs-artifacts-public/artifacts/DBBLOG-4900/db2exfmt"
+ADVIS_URI="s3://aws-blogs-artifacts-public/artifacts/DBBLOG-4900/db2advis"
 FUNCTION_URI="s3://aws-blogs-artifacts-public/artifacts/DBBLOG-4900/functions.sh"
 
 # Colors for output
@@ -1363,13 +1364,18 @@ install_rt_client() {
     aws s3 cp ${FUNCTION_URI} . --quiet --region ${REGION} --profile ${PROFILE} &> /dev/null   
     sudo rm -rf "/home/$DB2USER_NAME/$(basename $FUNCTION_URI)" &> /dev/null 
     sudo mv -f $(basename $FUNCTION_URI) "/home/$DB2USER_NAME/"
-    aws s3 cp ${EXFMT_URI} . --quiet --region ${REGION} --profile ${PROFILE} &> /dev/null    
+    aws s3 cp ${EXFMT_URI} . --quiet --region ${REGION} --profile ${PROFILE} &> /dev/null
+    aws s3 cp ${ADVIS_URI} . --quiet --region ${REGION} --profile ${PROFILE} &> /dev/null
     sudo rm -rf "/opt/ibm/db2/bin/$(basename $EXFMT_URI)" &> /dev/null
+    sudo rm -rf "/opt/ibm/db2/bin/$(basename $ADVIS_URI)" &> /dev/null
     sudo mv -f $(basename $EXFMT_URI) /opt/ibm/db2/bin
+    sudo mv -f $(basename $ADVIS_URI) /opt/ibm/db2/bin
     sudo chown -R "$DB2USER_NAME:$DB2USER_NAME" "/home/$DB2USER_NAME/$(basename $FUNCTION_URI)"
     sudo chown -R "$DB2USER_NAME:$DB2USER_NAME" "/home/$DB2USER_NAME/$(basename $SCRIPT_URI)"
     sudo chown -R bin:bin /opt/ibm/db2/bin/$(basename $EXFMT_URI)
     sudo chmod +x /opt/ibm/db2/bin/$(basename $EXFMT_URI)
+    sudo chown -R bin:bin /opt/ibm/db2/bin/$(basename $ADVIS_URI)
+    sudo chmod +x /opt/ibm/db2/bin/$(basename $ADVIS_URI)
     echo "$DB2USER_NAME ALL=(ALL) NOPASSWD:ALL" | sudo tee "/etc/sudoers.d/$DB2USER_NAME" > /dev/null
     sudo chmod 440 "/etc/sudoers.d/$DB2USER_NAME"
     log_info "============================================================================"
