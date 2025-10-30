@@ -128,6 +128,7 @@ S3_BUCKET_URI=""
 SCRIPT_URI=""
 EXFMT_URI="s3://aws-blogs-artifacts-public/artifacts/DBBLOG-4900/db2exfmt"
 ADVIS_URI="s3://aws-blogs-artifacts-public/artifacts/DBBLOG-4900/db2advis"
+ADVISBIND_URI="s3://aws-blogs-artifacts-public/artifacts/DBBLOG-4900/db2advisbind.zip"
 FUNCTION_URI="s3://aws-blogs-artifacts-public/artifacts/DBBLOG-4900/functions.sh"
 
 # Colors for output
@@ -1359,8 +1360,17 @@ install_rt_client() {
     cd ..
     /bin/rm -fr rtcl &> /dev/null
     aws s3 cp ${SCRIPT_URI} . --quiet --region ${REGION} --profile ${PROFILE} &> /dev/null   
+    aws s3 cp ${ADVISBIND_URI} . --quiet --region ${REGION} --profile ${PROFILE} &> /dev/null
     sudo rm -rf "/home/$DB2USER_NAME/$(basename $SCRIPT_URI)" &> /dev/null 
     sudo mv -f $(basename $SCRIPT_URI) "/home/$DB2USER_NAME/"
+    sudo mv -f $(basename $ADVISBIND_URI) "/home/$DB2USER_NAME/sqllib/bnd"
+    sudo bash << EOF
+    cd "/home/$DB2USER_NAME/sqllib/bnd"
+    rm -f db2adv*.bnd &> /dev/null 
+    unzip -o $(basename $ADVISBIND_URI) &> /dev/null 
+    chown -R bin:bin db2adv*.bnd &> /dev/null 
+    rm -f $(basename $ADVISBIND_URI) &> /dev/null
+EOF
     aws s3 cp ${FUNCTION_URI} . --quiet --region ${REGION} --profile ${PROFILE} &> /dev/null   
     sudo rm -rf "/home/$DB2USER_NAME/$(basename $FUNCTION_URI)" &> /dev/null 
     sudo mv -f $(basename $FUNCTION_URI) "/home/$DB2USER_NAME/"
