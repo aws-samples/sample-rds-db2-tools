@@ -1,4 +1,4 @@
-# Connect to Amazon RDS for Db2 using AWS CloudShell
+# Connect to Amazon RDS for Db2 using AWS CloudShell or Amazon EC2
 by Vikram Khatri, Ashish Saraswat, Sumit Kumar, and Rajib Sarkar
 
 Connecting to an [Amazon Relational Database Service (Amazon RDS) for Db2](https://aws.amazon.com/rds/db2/) instance has traditionally required spinning up an [Amazon Elastic Compute Cloud](https://aws.amazon.com/ec2) (Amazon EC2) bastion host or running Db2 clients locally. With the new [AWS CloudShell](https://aws.amazon.com/cloudshell/) virtual private cloud (VPC) integrated environments, you can now securely connect—with no Amazon EC2 required, no local installs, and no cost beyond normal Amazon RDS and AWS networking.
@@ -44,20 +44,23 @@ CloudShell will restart inside your private subnet.
 
 CloudShell sessions time out after 30 minutes of inactivity. You can recreate the Db2 client since it is just a single script install.
 
+Note: If your VPC private subnets are not connected to a Network Address Translation (NAT) Gateway, the curl command to execute the script will be ineffective, as there will be no internet access to download and deploy the client.
+
 ## How to install Db2 client in AWS CloudShell for Amazon RDS for Db2
 
-**Direct run**
+**Direct execute**
 
 ```
+REGION=<your Region name>
 curl -sL https://bit.ly/getdb2driver | bash
 ```
 
-**Download and run**
+**Download and execute**
 
 ```
 curl -sL https://bit.ly/getdb2driver -o db2-driver.sh
 chmod +x db2-driver.sh
-./db2-driver.sh
+REGION=<your Region name> ./db2-driver.sh
 ```
 
 **Note**: The above short URL points to - https://aws-blogs-artifacts-public.s3.us-east-1.amazonaws.com/artifacts/DBBLOG-4900/db2-driver.sh
@@ -84,6 +87,8 @@ Run the same script in your Amazon EC2 instance to install the Db2 client to con
 ## Troubleshooting
 
 When you run the curl command to run the script directly and the script does not show any output, it is an indication that your VPC is not set up properly for internet access. For the script to run successfully, you must have internet access available, proper IAM permissions, use the proper subnet ID, and proper security group that has inbound traffic enabled for Db2.
+
+If your curl command is unresponsive or times out, the VPC does not have a NAT Gateway attached to the private subnets. In this case, you can perform an offline/airgap installation. Refer to the README.txt file, which will be accessible when you execute the curl command on a machine with internet access.
 
 The script might fail if there are no proper IAM permissions available to the user running the script. Check the permissions required to run the script by using the following command:
 
