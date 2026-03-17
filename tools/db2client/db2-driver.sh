@@ -9,7 +9,7 @@ FILE_README="README.txt"
 FILE_EXFMT="db2exfmt"
 FILE_ADVIS="db2advis"
 FILE_ADVISBIND="db2advisbind.zip"
-INCLUDE_LICENSED_TOOLS=${INCLUDE_LICENSED_TOOLS:-FALSE}
+INCLUDE_OTHER_TOOLS=${INCLUDE_OTHER_TOOLS:-FALSE}
 
 # Public source (online mode)
 SOURCE_URL="https://aws-blogs-artifacts-public.s3.amazonaws.com/artifacts/DBBLOG-4900"
@@ -243,7 +243,7 @@ download_artifacts() {
     for f in "$FILE_FUNCTIONS" "$FILE_README"; do
       s3_download "scripts/${f}" "${work_dir}/${f}"
     done
-    if [ "$INCLUDE_LICENSED_TOOLS" = "TRUE" ]; then
+    if [ "$INCLUDE_OTHER_TOOLS" = "TRUE" ]; then
       for f in "$FILE_EXFMT" "$FILE_ADVIS" "$FILE_ADVISBIND"; do
         s3_download "scripts/${f}" "${work_dir}/${f}"
       done
@@ -256,7 +256,7 @@ download_artifacts() {
     for f in "$FILE_FUNCTIONS" "$FILE_README"; do
       curl_download "${SOURCE_URL}/${f}" "${work_dir}/${f}"
     done
-    if [ "$INCLUDE_LICENSED_TOOLS" = "TRUE" ]; then
+    if [ "$INCLUDE_OTHER_TOOLS" = "TRUE" ]; then
       for f in "$FILE_EXFMT" "$FILE_ADVIS" "$FILE_ADVISBIND"; do
         curl_download "${SOURCE_URL}/${f}" "${work_dir}/${f}"
       done
@@ -339,7 +339,7 @@ install_rt_client() {
   sudo mv -f "${work_dir}/${FILE_README}" "/home/$DB2USER_NAME/"
   sudo chown "$DB2USER_NAME:$DB2USER_NAME" "/home/$DB2USER_NAME/${FILE_README}"
 
-  if [ "$INCLUDE_LICENSED_TOOLS" = "TRUE" ]; then
+  if [ "$INCLUDE_OTHER_TOOLS" = "TRUE" ]; then
     # Place db2advisbind.zip into sqllib/bnd and unzip
     sudo mv -f "${work_dir}/${FILE_ADVISBIND}" "/home/$DB2USER_NAME/sqllib/bnd/"
     sudo bash -c "
@@ -357,7 +357,7 @@ install_rt_client() {
       sudo chmod +x "/opt/ibm/db2/bin/${bin}"
     done
   else
-    log_info "Skipping licensed tools (db2exfmt, db2advis, db2advisbind) — set INCLUDE_LICENSED_TOOLS=TRUE to enable"
+    log_info "Skipping additional tools (db2exfmt, db2advis, db2advisbind) — set INCLUDE_OTHER_TOOLS=TRUE to enable"
   fi
 
   echo "$DB2USER_NAME ALL=(ALL) NOPASSWD:ALL" | sudo tee "/etc/sudoers.d/$DB2USER_NAME" >/dev/null
