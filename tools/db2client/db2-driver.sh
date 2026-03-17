@@ -9,6 +9,7 @@ FILE_README="README.txt"
 FILE_EXFMT="db2exfmt"
 FILE_ADVIS="db2advis"
 FILE_ADVISBIND="db2advisbind.zip"
+INCLUDE_LICENSED_TOOLS=${INCLUDE_LICENSED_TOOLS:-FALSE}
 
 # Public source (online mode)
 SOURCE_URL="https://aws-blogs-artifacts-public.s3.amazonaws.com/artifacts/DBBLOG-4900"
@@ -49,7 +50,7 @@ fi
 
 
 # --- Defaults ---
-PROFILE=${PROFILE:-"default"}
+PROFILE=${PROFILE:-""}
 REGION=${REGION:-""}
 DB2USER_NAME=${DB2USER_NAME:-"db2inst1"}
 BUCKET=${BUCKET:-""}
@@ -123,7 +124,13 @@ validate() {
 
   if [ "${CREDS_FROM_METADATA:-false}" = "false" ]; then
     if ! aws sts get-caller-identity $PROFILE_ARG --region "$REGION" >/dev/null 2>&1; then
-      log_error "AWS credentials invalid. Run 'aws configure' or set AWS_ACCESS_KEY_ID/SECRET."
+      if [ -n "$PROFILE" ]; then
+        log_error "Profile '$PROFILE' credentials are invalid or expired."
+        log_error "Run: aws sts get-caller-identity --profile $PROFILE"
+        log_error "Either refresh credentials for '$PROFILE' or unset PROFILE to use instance metadata."
+      else
+        log_error "AWS credentials invalid. Set AWS_ACCESS_KEY_ID/SECRET or export PROFILE=<name>."
+      fi
       exit 1
     fi
   fi
@@ -152,12 +159,29 @@ ensure_jq() {
 
 # =============================================================================
 # Credentials — probe CloudShell, EC2 IMDSv2, then fall back to profile/env
+# Precedence:
+#   1. Exported AWS_ACCESS_KEY_ID/SECRET  → use immediately
+#   2. PROFILE explicitly set             → validate with sts, exit if fails
+#   3. No profile                         → probe CloudShell IMDS → EC2 IMDS → exit if neither works
 # =============================================================================
 set_credentials() {
   local creds
   CREDS_FROM_METADATA=false
 
-  # CloudShell (local metadata endpoint 127.0.0.1:1338)
+  # Priority 1: exported env var credentials
+  if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+    PROFILE_ARG=""
+    return 0
+  fi
+
+  # Priority 2: explicit profile — skip IMDS, validate immediately
+  if [ -n "$PROFILE" ]; then
+    PROFILE_ARG="--profile $PROFILE"
+    log_info "Using explicit profile: $PROFILE"
+    return 0
+  fi
+
+  # Priority 3a: CloudShell IMDS
   if curl -s --connect-timeout 1 http://127.0.0.1:1338/latest/meta-data/ >/dev/null 2>&1; then
     log_info "Detected AWS CloudShell environment"
     local token
@@ -173,7 +197,7 @@ set_credentials() {
     return 0
   fi
 
-  # EC2 IMDSv2
+  # Priority 3b: EC2 IMDSv2
   if curl -s --connect-timeout 1 http://169.254.169.254/latest/meta-data/ >/dev/null 2>&1; then
     log_info "Detected EC2 environment"
     local token role
@@ -193,12 +217,8 @@ set_credentials() {
     fi
   fi
 
-  # Fall back to env vars or named profile
-  if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-    PROFILE_ARG=""
-  else
-    PROFILE_ARG="--profile $PROFILE"
-  fi
+  log_error "No credentials found. Set AWS_ACCESS_KEY_ID/SECRET, export PROFILE=<name>, or run from CloudShell/EC2."
+  exit 1
 }
 
 # =============================================================================
@@ -220,17 +240,27 @@ download_artifacts() {
 
   if [ -n "$BUCKET" ]; then
     # --- Airgap mode: pull from private bucket ---
-    for f in "$FILE_FUNCTIONS" "$FILE_README" "$FILE_EXFMT" "$FILE_ADVIS" "$FILE_ADVISBIND"; do
+    for f in "$FILE_FUNCTIONS" "$FILE_README"; do
       s3_download "scripts/${f}" "${work_dir}/${f}"
     done
+    if [ "$INCLUDE_LICENSED_TOOLS" = "TRUE" ]; then
+      for f in "$FILE_EXFMT" "$FILE_ADVIS" "$FILE_ADVISBIND"; do
+        s3_download "scripts/${f}" "${work_dir}/${f}"
+      done
+    fi
     s3_download "ssl/${REGION}-bundle.pem"    "${work_dir}/${REGION}-bundle.pem"
     s3_download "drivers/${DRIVER_RT}"        "${work_dir}/${DRIVER_RT}"
     s3_download "scripts/${SCRIPT_CONFIGURE}" "${work_dir}/${SCRIPT_CONFIGURE}"
   else
     # --- Online mode: pull from public S3 via curl ---
-    for f in "$FILE_FUNCTIONS" "$FILE_README" "$FILE_EXFMT" "$FILE_ADVIS" "$FILE_ADVISBIND"; do
+    for f in "$FILE_FUNCTIONS" "$FILE_README"; do
       curl_download "${SOURCE_URL}/${f}" "${work_dir}/${f}"
     done
+    if [ "$INCLUDE_LICENSED_TOOLS" = "TRUE" ]; then
+      for f in "$FILE_EXFMT" "$FILE_ADVIS" "$FILE_ADVISBIND"; do
+        curl_download "${SOURCE_URL}/${f}" "${work_dir}/${f}"
+      done
+    fi
     curl_download \
       "https://truststore.pki.rds.amazonaws.com/${REGION}/${REGION}-bundle.pem" \
       "${work_dir}/${REGION}-bundle.pem"
@@ -309,22 +339,26 @@ install_rt_client() {
   sudo mv -f "${work_dir}/${FILE_README}" "/home/$DB2USER_NAME/"
   sudo chown "$DB2USER_NAME:$DB2USER_NAME" "/home/$DB2USER_NAME/${FILE_README}"
 
-  # Place db2advisbind.zip into sqllib/bnd and unzip
-  sudo mv -f "${work_dir}/${FILE_ADVISBIND}" "/home/$DB2USER_NAME/sqllib/bnd/"
-  sudo bash -c "
-    cd /home/$DB2USER_NAME/sqllib/bnd
-    rm -f db2adv*.bnd
-    unzip -o ${FILE_ADVISBIND} &>/dev/null
-    chown -R bin:bin db2adv*.bnd
-    rm -f ${FILE_ADVISBIND}
-  "
+  if [ "$INCLUDE_LICENSED_TOOLS" = "TRUE" ]; then
+    # Place db2advisbind.zip into sqllib/bnd and unzip
+    sudo mv -f "${work_dir}/${FILE_ADVISBIND}" "/home/$DB2USER_NAME/sqllib/bnd/"
+    sudo bash -c "
+      cd /home/$DB2USER_NAME/sqllib/bnd
+      rm -f db2adv*.bnd
+      unzip -o ${FILE_ADVISBIND} &>/dev/null
+      chown -R bin:bin db2adv*.bnd
+      rm -f ${FILE_ADVISBIND}
+    "
 
-  # Place db2exfmt and db2advis into /opt/ibm/db2/bin (matches db2-driver.sh)
-  for bin in "$FILE_EXFMT" "$FILE_ADVIS"; do
-    sudo mv -f "${work_dir}/${bin}" /opt/ibm/db2/bin/
-    sudo chown bin:bin "/opt/ibm/db2/bin/${bin}"
-    sudo chmod +x "/opt/ibm/db2/bin/${bin}"
-  done
+    # Place db2exfmt and db2advis into /opt/ibm/db2/bin
+    for bin in "$FILE_EXFMT" "$FILE_ADVIS"; do
+      sudo mv -f "${work_dir}/${bin}" /opt/ibm/db2/bin/
+      sudo chown bin:bin "/opt/ibm/db2/bin/${bin}"
+      sudo chmod +x "/opt/ibm/db2/bin/${bin}"
+    done
+  else
+    log_info "Skipping licensed tools (db2exfmt, db2advis, db2advisbind) — set INCLUDE_LICENSED_TOOLS=TRUE to enable"
+  fi
 
   echo "$DB2USER_NAME ALL=(ALL) NOPASSWD:ALL" | sudo tee "/etc/sudoers.d/$DB2USER_NAME" >/dev/null
   sudo chmod 440 "/etc/sudoers.d/$DB2USER_NAME"
