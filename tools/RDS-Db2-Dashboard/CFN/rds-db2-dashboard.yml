@@ -1,0 +1,1777 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "This Stack create RDS Db2 Dashboard which provide detailed insights about workloads running on RDS Db2 database."
+Parameters:
+  customName:
+    Type: String
+    Description: "Custom name for easy recognition"
+  db2Instance: 
+    Type: String
+    Description: DB2 EC2 Instance Id or RDS DB Instance Identifier
+  database:
+    Type: String
+    Description: DB2 Database Name
+  cloudWatchNamespace:
+    Type: String
+    Description: Specify CloudWatch Namespace required for DB2Mon metrics. New Namespace will be created if it doesn't exist.
+    Default: "DB2MonNS"
+  cloudWatchLogGroupName:
+    Type: String
+    Description: Specify CloudWatch LogGroupName required for DB2Mon metrics. New LogGroup will be created if it doesn't exist.
+    Default: "DB2MonLG"
+
+Resources:
+  DB2MonDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Join ['-', ["RDS-Db2", !Ref customName]]
+      DashboardBody: !Sub |
+        {
+            "widgets": [
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 113,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Db2 Memory Pool\n",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 106,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Database Utility Time Breakdown",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 6,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Database Memory",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 149,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Db2 Tablespace Metrics",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 142,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Database Level IO Read & Write Times",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 107,
+                    "width": 24,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "m1*m7/PERIOD(m1)", "label": "Backup%", "id": "e1", "visible": false } ],
+                            [ { "expression": "m2*m7/PERIOD(m2)", "label": "Index Build%", "id": "e2", "visible": false } ],
+                            [ { "expression": "m3*m7/PERIOD(m3)", "label": "Load%", "id": "e3", "visible": false } ],
+                            [ { "expression": "m4*m7/PERIOD(m4)", "label": "Rollback%", "id": "e4", "visible": false } ],
+                            [ { "expression": "m5*m7/PERIOD(m5)", "label": "Reorg%", "id": "e5", "visible": false } ],
+                            [ { "expression": "m6*m7/PERIOD(m6)", "label": "Runstats%", "id": "e6", "visible": false } ],
+                            [ "${cloudWatchNamespace}", "PCT_BACKUP", "TableName", "DB_TIMEB", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "label": "Backup%", "yAxis": "left", "id": "m1" } ],
+                            [ ".", "PCT_IDX_BLD", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Index Build%", "yAxis": "left", "id": "m2" } ],
+                            [ ".", "PCT_LOAD", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Load%", "yAxis": "left", "id": "m3" } ],
+                            [ ".", "PCT_RBACK", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Rollback%", "id": "m4" } ],
+                            [ ".", "PCT_REORG", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Reorg%", "id": "m5" } ],
+                            [ ".", "PCT_RUNSTATS", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Runstats%", "id": "m6" } ],
+                            [ ".", "TOTAL_RQST_TM", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m7", "visible": false } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": true,
+                        "region": "${AWS::Region}",
+                        "title": "DB Utility Processing Time",
+                        "setPeriodToTimeRange": true,
+                        "period": 60,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "label": "Percent",
+                                "showUnits": false,
+                                "min": 0,
+                                "max": 100
+                            },
+                            "right": {
+                                "min": 0,
+                                "max": 100
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 143,
+                    "width": 13,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT AVG(AVG_READ_TIME) FROM SCHEMA(\"${cloudWatchNamespace}\", Database, InstanceID,\"MEMBER\",TBSP_NAME,TableName) WHERE TableName = 'TSP_DSKIO' AND InstanceID='${db2Instance}' AND Database='${database}' GROUP BY TBSP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60 } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Direct Read Requests",
+                        "stat": "Average",
+                        "period": 60,
+                        "yAxis": {
+                            "left": {
+                                "label": "Sec",
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 13,
+                    "y": 143,
+                    "width": 11,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT AVG(AVG_WRITE_TIME) FROM SCHEMA(\"${cloudWatchNamespace}\", Database,  InstanceID,\"MEMBER\",TBSP_NAME,TableName) WHERE TableName = 'TSP_DSKIO' AND InstanceID='${db2Instance}' AND Database='${database}' GROUP BY TBSP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60 } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Direct Write Requests",
+                        "stat": "Average",
+                        "period": 300,
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false,
+                                "label": "Sec"
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 150,
+                    "width": 8,
+                    "height": 8,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT AVG(TBSP_MB_USED) FROM SCHEMA(\"${cloudWatchNamespace}\",Database,InstanceID,\"MEMBER\",TBSP_NAME,TableName) WHERE InstanceID = '${db2Instance}' AND Database = '${database}' GROUP BY TBSP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60, "visible": false } ],
+                            [ { "expression": "q1/1024", "label": "", "id": "e1", "region": "${AWS::Region}" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 300,
+                        "title": "TS Used",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false,
+                                "label": "GiB"
+                            },
+                            "right": {
+                                "label": "",
+                                "showUnits": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 1,
+                    "width": 9,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "CPU_ONL", "TableName", "DB_SYSRE", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "label": "CPU Online" } ],
+                            [ ".", "CPU_CFG", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "CPU Configured" } ],
+                            [ ".", "CPU_HMT", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "CPU Hyperthreading" } ]
+                        ],
+                        "sparkline": true,
+                        "view": "singleValue",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 60,
+                        "title": "CPU Metrics",
+                        "singleValueFullPrecision": true
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 13,
+                    "y": 1,
+                    "width": 11,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "CPU_LOAD_SHRT", "TableName", "DB_SYSRE", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "CPU Load over 1 Min", "region": "${AWS::Region}" } ],
+                            [ ".", "CPU_LOAD_MED", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "CPU Load over 10 min", "region": "${AWS::Region}" } ],
+                            [ ".", "CPU_LOAD_LNG", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "CPU Load over 15 min", "region": "${AWS::Region}" } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 60,
+                        "title": "Runnable Processes",
+                        "yAxis": {
+                            "left": {
+                                "label": "Percent",
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 0,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# System Key Metrics",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 9,
+                    "y": 1,
+                    "width": 4,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "m1/1000", "label": "CPU Speed", "id": "e1", "region": "${AWS::Region}" } ],
+                            [ "${cloudWatchNamespace}", "CPU_SPEED", "TableName", "DB_SYSRE", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "id": "m1", "region": "${AWS::Region}", "visible": false } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 900,
+                        "title": "CPU Speed",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false,
+                                "label": "GHz"
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 13,
+                    "width": 7,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "FLOOR((m12*1024*1024/1000/1000/1000/1000)*10000)/10000", "label": "DB Size in TB", "id": "e1", "region": "${AWS::Region}" } ],
+                            [ { "expression": "FLOOR((m4*60/1000/1000)*1000)/1000", "label": "Million Commits", "id": "e5", "region": "${AWS::Region}" } ],
+                            [ { "expression": "m7*60", "label": "Total Rollbacks", "id": "e3", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m3*60)", "label": "Total Activities", "id": "e4", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL((m1)*60/1000/1000)", "label": "Million Selects", "id": "e2", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL((m2)*60/1000/1000)", "label": "Million IUD", "id": "e13", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m5*60)", "label": "Total Deadlocks", "id": "e6", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m6*60)", "label": "Pkg Cache Inserts", "id": "e7", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m8*60/1000/1000)", "label": "Physical Million Reads", "id": "e8", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m9*60/1000/1000)", "label": "Millions Rows Inserted", "id": "e9", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m11*60/1000/1000)", "label": "Million Rows Modified", "id": "e11", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m10*60/1000/1000)", "label": "Million Rows Returned", "id": "e10", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m13*60/1000/1000)", "label": "Million Rows Updated", "id": "e12", "region": "${AWS::Region}", "visible": false } ],
+                            [ "${cloudWatchNamespace}", "SEL_P_S", "TableName", "DB_THRUP", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "SEL_P_S", "region": "${AWS::Region}", "id": "m1", "visible": false } ],
+                            [ ".", "UID_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "UID_P_S", "region": "${AWS::Region}", "id": "m2", "visible": false } ],
+                            [ ".", "ACT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ACT_PER_S", "region": "${AWS::Region}", "id": "m3", "visible": false } ],
+                            [ ".", "CMT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "CMT_PER_S", "region": "${AWS::Region}", "id": "m4", "visible": false } ],
+                            [ ".", "RB_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m7", "visible": false, "region": "${AWS::Region}" } ],
+                            [ ".", "DDLCK_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "DDLCK_PER_S", "region": "${AWS::Region}", "id": "m5", "visible": false } ],
+                            [ ".", "PKG_CACHE_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "PKG_CACHE_INS_P_S", "region": "${AWS::Region}", "id": "m6", "visible": false } ],
+                            [ ".", "P_RD_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "P_RD_PER_S", "region": "${AWS::Region}", "id": "m8", "visible": false } ],
+                            [ ".", "ROWS_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_INS_P_S", "region": "${AWS::Region}", "id": "m9", "visible": false } ],
+                            [ ".", "ROWS_RET_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_RET_P_S", "region": "${AWS::Region}", "id": "m10", "visible": false } ],
+                            [ ".", "ROWS_MOD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_MOD_P_S", "region": "${AWS::Region}", "id": "m11", "visible": false } ],
+                            [ ".", "ROWS_UPD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m13", "visible": false, "region": "${AWS::Region}" } ],
+                            [ ".", "DB_MB_USED", ".", "DB_SIZE", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Database Size MB Used", "stat": "Average", "id": "m12", "visible": false } ]
+                        ],
+                        "view": "singleValue",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Database Activities Over Range",
+                        "period": 86400,
+                        "stat": "Sum",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true,
+                        "sparkline": false
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 134,
+                    "width": 12,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT AVG(INDEX_HR) FROM SCHEMA(\"${cloudWatchNamespace}\", InstanceID,Database, \"MEMBER\",TBSP_NAME,TableName) WHERE TableName = 'BPL_STATS' AND Database = '${database}' AND InstanceID = '${db2Instance}' GROUP BY TBSP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 300 } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 300,
+                        "title": "Index BP Hit Ratio"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 134,
+                    "width": 12,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT AVG(DATA_HR) FROM SCHEMA(\"${cloudWatchNamespace}\", InstanceID,Database, \"MEMBER\",TBSP_NAME,TableName) WHERE TableName = 'BPL_STATS' AND Database = '${database}' AND InstanceID = '${db2Instance}' GROUP BY TBSP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 300 } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 300,
+                        "title": "Data BP Hit Ratio"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 127,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Log Write Time",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 128,
+                    "width": 12,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "LOG_WRITE_TIME_PER_IO_MS", "TableName", "DB_LOGWR", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "yAxis": "left", "label": "Log Write Time IO in ms" } ],
+                            [ ".", "LOG_WRITE_IO_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "yAxis": "left", "label": "Log Write IO per Seconds", "visible": false } ],
+                            [ ".", "TOTAL_CLIENTS", ".", "DB_CLACT", ".", ".", ".", ".", ".", ".", { "yAxis": "left", "label": "Total Clients", "stat": "Sum", "visible": false, "region": "${AWS::Region}" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 60,
+                        "title": "Log Write Times in Milli Second",
+                        "yAxis": {
+                            "left": {
+                                "label": "Milli-Seconds",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        },
+                        "annotations": {
+                            "horizontal": [
+                                {
+                                    "label": "High",
+                                    "value": 2,
+                                    "fill": "above"
+                                }
+                            ]
+                        },
+                        "legend": {
+                            "position": "bottom"
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 139,
+                    "width": 12,
+                    "height": 3,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT MAX(SIZE_MB) FROM SCHEMA(\"${cloudWatchNamespace}\", BP_NAME,InstanceID,Database, \"MEMBER\",TableName) WHERE TableName = 'BPL_SIZES' AND Database = '${database}' AND InstanceID = '${db2Instance}' GROUP BY BP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 900 } ]
+                        ],
+                        "view": "singleValue",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 900,
+                        "title": "Bufferpool Sizes in MB",
+                        "yAxis": {
+                            "left": {
+                                "label": "MB",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        },
+                        "singleValueFullPrecision": true
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 139,
+                    "width": 11,
+                    "height": 3,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT MAX(NUM_PAGES) FROM SCHEMA(\"${cloudWatchNamespace}\", BP_NAME,InstanceID,Database, \"MEMBER\",TableName) WHERE TableName = 'BPL_SIZES' AND Database = '${database}' AND InstanceID = '${db2Instance}' GROUP BY BP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 900 } ]
+                        ],
+                        "view": "singleValue",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 900,
+                        "title": "Bufferpol Sizes in Pages",
+                        "yAxis": {
+                            "left": {
+                                "label": "Pages",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        },
+                        "singleValueFullPrecision": true
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 32,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "ACTIVE_CLIENTS", "TableName", "DB_CLACT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "id": "m4", "yAxis": "left", "region": "${AWS::Region}", "label": "Number of Active Clients", "color": "#1f77b4", "stat": "p99" } ],
+                            [ ".", "TOTAL_CLIENTS", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m5", "region": "${AWS::Region}", "label": "Total Clients" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Total and Active Connections",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "yAxis": {
+                            "left": {
+                                "min": 0,
+                                "label": "",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "label": "Percent",
+                                "min": 0,
+                                "showUnits": false
+                            }
+                        },
+                        "legend": {
+                            "position": "bottom"
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 100,
+                    "width": 24,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "(e4-e3)*100/e4", "label": "Sectional Sort Wait%", "id": "e1", "region": "${AWS::Region}", "visible": false, "stat": "Average", "period": 60 } ],
+                            [ { "expression": "e3*100/e4", "label": "Section Sort Processing%", "id": "e2", "yAxis": "right", "region": "${AWS::Region}", "visible": false, "stat": "Average", "period": 60 } ],
+                            [ { "expression": "IF(m9>m6, 0, m9)", "label": "Expression3", "id": "e3", "yAxis": "right", "region": "${AWS::Region}", "visible": false, "stat": "Average", "period": 60 } ],
+                            [ { "expression": "m6", "label": "Expression4", "id": "e4", "yAxis": "right", "region": "${AWS::Region}", "visible": false, "stat": "Average", "period": 60 } ],
+                            [ "${cloudWatchNamespace}", "TOTAL_SORTS", "TableName", "DB_SORT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Total Sorts", "region": "${AWS::Region}", "id": "m1" } ],
+                            [ ".", "SORT_OVERFLOWS", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Sort Overflows", "region": "${AWS::Region}", "id": "m2" } ],
+                            [ ".", "HSJN_OVFL", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Hash Join Overflows", "region": "${AWS::Region}", "id": "m3" } ],
+                            [ ".", "PST_THR_HSJN", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Post Threshold Hash Join", "region": "${AWS::Region}", "id": "m4" } ],
+                            [ ".", "PST_SHRTHR_HSJN", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Post Shared Threshold Hash Joins", "region": "${AWS::Region}", "id": "m5" } ],
+                            [ ".", "TOT_SECT_SORT_TM", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Total Sectional Sort Time", "region": "${AWS::Region}", "id": "m6", "visible": false } ],
+                            [ ".", "TOTAL_HSJN", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Total Hash Join", "region": "${AWS::Region}", "id": "m7" } ],
+                            [ ".", "SORT_SHRHEAP_ALLOCATED", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Sort Shared Heap Allocated", "region": "${AWS::Region}", "visible": false, "id": "m8" } ],
+                            [ ".", "TOT_SECT_SORT_PROC_TM", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Total Sectional Sort Proc Time", "region": "${AWS::Region}", "id": "m9", "visible": false } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Database Sorts and Hash Joins",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        },
+                        "liveData": false
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 120,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Db2 Memory Set Details",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 114,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT SUM(MEMORY_POOL_USED_HWM_MB) FROM SCHEMA(\"${cloudWatchNamespace}\", Database, InstanceID,\"MEMBER\",MEMORY_POOL_TYPE,TableName) WHERE TableName = 'DB_MEMPL' GROUP BY MEMORY_POOL_TYPE", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60 } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Memory Pool HWM",
+                        "setPeriodToTimeRange": true,
+                        "period": 60,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "label": "MB",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 121,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT SUM(MEMORY_SET_USED_HWM_MB) FROM SCHEMA(\"${cloudWatchNamespace}\", Database, InstanceID,\"MEMBER\",SET_TYPE,TableName) WHERE TableName = 'DB_MEMST' GROUP BY SET_TYPE", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60 } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Memory Set HWM",
+                        "setPeriodToTimeRange": true,
+                        "period": 60,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "label": "MB",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 114,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT SUM(MEMORY_POOL_USED_MB) FROM SCHEMA(\"${cloudWatchNamespace}\", Database, InstanceID,\"MEMBER\",MEMORY_POOL_TYPE,TableName) GROUP BY MEMORY_POOL_TYPE", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60 } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Memory Pool Used",
+                        "setPeriodToTimeRange": true,
+                        "period": 60,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "label": "MB",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 121,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT SUM(MEMORY_SET_USED_MB) FROM SCHEMA(\"${cloudWatchNamespace}\", Database, InstanceID,\"MEMBER\",SET_TYPE,TableName) WHERE TableName = 'DB_MEMST' GROUP BY SET_TYPE", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60 } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Memory Set Used",
+                        "setPeriodToTimeRange": true,
+                        "period": 60,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "label": "MB",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 83,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# IO statistics for top SQL statements",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "log",
+                    "x": 0,
+                    "y": 84,
+                    "width": 24,
+                    "height": 7,
+                    "properties": {
+                        "query": "SOURCE '${cloudWatchLogGroupName}' |\nfields @timestamp, @message, @logStream, @log\n| filter tableName = 'SQL_TOPIOSTA'\n| display NUM_EXEC, AVG_D_LRD, AVG_D_PRD, AVG_I_LRD, AVG_I_PRD, STMT_TEXT\n| sort @timestamp desc, coord_stmt_exec_time desc, total_act_time desc\n| limit 20",
+                        "region": "${AWS::Region}",
+                        "stacked": false,
+                        "title": "Log group: ${cloudWatchLogGroupName}",
+                        "view": "table"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 75,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Wait time breakdown for top SQL statements",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 67,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Execution time for top SQL statements",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 91,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Rows statistics for top SQL statements",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "log",
+                    "x": 0,
+                    "y": 76,
+                    "width": 24,
+                    "height": 7,
+                    "properties": {
+                        "query": "SOURCE '${cloudWatchLogGroupName}' |\nfields @timestamp, @message, @logStream, @log\n| display PCT_WAIT, PCT_POOL_R, PCT_LG_DSK, PCT_LTCH, STMT_TEXT\n| filter tableName = 'SQL_TOPWAITT'\n| sort @timestamp desc, coord_stmt_exec_time desc, total_act_time desc\n| limit 20",
+                        "region": "${AWS::Region}",
+                        "stacked": false,
+                        "title": "Log group: ${cloudWatchLogGroupName}",
+                        "view": "table"
+                    }
+                },
+                {
+                    "type": "log",
+                    "x": 0,
+                    "y": 68,
+                    "width": 24,
+                    "height": 7,
+                    "properties": {
+                        "query": "SOURCE '${cloudWatchLogGroupName}' |\nfields @timestamp, @message, @logStream, @log\n| filter tableName = 'SQL_TOPEXECT'\n| display NUM_EXEC, PCT_COORD_STMT_EXEC_TIME, PCT_WAIT_TIME, STMT_TEXT\n| sort @timestamp desc, PCT_COORD_STMT_EXEC_TIME desc, TOTAL_ACT_TIME desc\n| limit 20",
+                        "region": "${AWS::Region}",
+                        "stacked": false,
+                        "title": "Log group: ${cloudWatchLogGroupName}",
+                        "view": "table"
+                    }
+                },
+                {
+                    "type": "log",
+                    "x": 0,
+                    "y": 92,
+                    "width": 24,
+                    "height": 7,
+                    "properties": {
+                        "query": "SOURCE '${cloudWatchLogGroupName}' |\nfields @timestamp, @message, @logStream, @log\n| filter tableName = 'SQL_TOPROWS'\n| display NUM_EXEC, AVG_ROWS_MOD, AVG_ROWS_READ, AVG_ROWS_RET, STMT_TEXT\n| sort @timestamp desc, coord_stmt_exec_time desc, total_act_time desc\n| limit 20",
+                        "region": "${AWS::Region}",
+                        "stacked": false,
+                        "title": "Log group: ${cloudWatchLogGroupName}",
+                        "view": "table"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 7,
+                    "width": 5,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "CEIL(m1/1024)", "label": "Total Memory in GB", "id": "e1", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m2/1024)", "label": "Free Memory in GB", "id": "e2", "region": "${AWS::Region}" } ],
+                            [ "${cloudWatchNamespace}", "MEMORY_TOTAL", "TableName", "DB_SYSRE", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "id": "m1", "visible": false } ],
+                            [ ".", "MEMORY_FREE", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "id": "m2", "visible": false } ]
+                        ],
+                        "view": "bar",
+                        "stacked": true,
+                        "region": "${AWS::Region}",
+                        "title": "Database System Memory 15 Min",
+                        "period": 900,
+                        "stat": "Maximum",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 54,
+                    "width": 12,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "m1*0.0+100", "label": "Total Request Time%", "id": "e1", "region": "${AWS::Region}" } ],
+                            [ "${cloudWatchNamespace}", "PCT_RQST_WAIT", "TableName", "DB_WAITT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "label": "Total Wait Time%", "id": "m1" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Total Database Wait Time %",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "yAxis": {
+                            "left": {
+                                "min": 0,
+                                "max": 100,
+                                "showUnits": false,
+                                "label": "Percent"
+                            },
+                            "right": {
+                                "min": 0,
+                                "max": 100,
+                                "showUnits": false,
+                                "label": "Connections"
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 31,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Client Activity",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 53,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Database Wait Time Breakdown\n",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 59,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Database Processing Time Breakdown\n",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 60,
+                    "width": 12,
+                    "height": 7,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "TOTAL_RQST_TM", "TableName", "DB_PROCT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "label": "Total Database Time" } ],
+                            [ ".", "TOTAL_WAIT_TM", ".", "DB_WAITT", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Total Database Wait Time" } ],
+                            [ ".", "TOTAL_PROC_TIME", ".", "DB_PROCT", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Total Database Processing Time" } ],
+                            [ ".", "PCT_COMP_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                            [ ".", "PCT_SECT_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                            [ ".", "PCT_COMMIT", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                            [ ".", "PCT_RBACK", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                            [ ".", "PCT_CONN_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                            [ ".", "PCT_SECT_SORT_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                            [ ".", "PCT_COL_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "visible": false } ]
+                        ],
+                        "sparkline": true,
+                        "view": "bar",
+                        "stacked": true,
+                        "region": "${AWS::Region}",
+                        "title": "DB Percentage Processing Times",
+                        "period": 86400,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false,
+                                "label": "Time"
+                            }
+                        },
+                        "setPeriodToTimeRange": true
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 38,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Database Time Breakdown\n",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 99,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Database Sort Breakdown\n",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 133,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Buffer Pool Metrics",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 18,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# SQL Activities",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 19,
+                    "width": 9,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "CEIL((m1*60/1000/1000)*10000)/10000", "label": "Million Selects", "id": "e2", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL((m2*60/1000/1000)*10000)/10000", "label": "Million IUD", "id": "e13", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m5*60)", "label": "Total Deadlocks", "id": "e6", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m6*60)", "label": "Pkg Cache Inserts", "id": "e7", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m8*60/1000/1000)", "label": "Physical Million Reads", "id": "e8", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m9*60/1000/1000)", "label": "Millions Rows Inserted", "id": "e9", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m11*60/1000/1000)", "label": "Million Rows Modified", "id": "e11", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m10*60/1000/1000)", "label": "Million Rows Returned", "id": "e10", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m13*60/1000/1000)", "label": "Million Rows Updated", "id": "e12", "region": "${AWS::Region}", "visible": false } ],
+                            [ "${cloudWatchNamespace}", "SEL_P_S", "TableName", "DB_THRUP", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "SEL_P_S", "region": "${AWS::Region}", "id": "m1", "visible": false } ],
+                            [ ".", "UID_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "UID_P_S", "region": "${AWS::Region}", "id": "m2", "visible": false } ],
+                            [ ".", "ACT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ACT_PER_S", "region": "${AWS::Region}", "id": "m3", "visible": false } ],
+                            [ ".", "CMT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "CMT_PER_S", "region": "${AWS::Region}", "id": "m4", "visible": false } ],
+                            [ ".", "RB_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m7", "visible": false, "region": "${AWS::Region}" } ],
+                            [ ".", "DDLCK_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "DDLCK_PER_S", "region": "${AWS::Region}", "id": "m5", "visible": false } ],
+                            [ ".", "PKG_CACHE_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "PKG_CACHE_INS_P_S", "region": "${AWS::Region}", "id": "m6", "visible": false } ],
+                            [ ".", "P_RD_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "P_RD_PER_S", "region": "${AWS::Region}", "id": "m8", "visible": false } ],
+                            [ ".", "ROWS_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_INS_P_S", "region": "${AWS::Region}", "id": "m9", "visible": false } ],
+                            [ ".", "ROWS_RET_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_RET_P_S", "region": "${AWS::Region}", "id": "m10", "visible": false } ],
+                            [ ".", "ROWS_MOD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_MOD_P_S", "region": "${AWS::Region}", "id": "m11", "visible": false } ],
+                            [ ".", "ROWS_UPD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m13", "visible": false, "region": "${AWS::Region}" } ],
+                            [ ".", "DB_MB_USED", ".", "DB_SIZE", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Database Size MB Used", "stat": "Average", "id": "m12", "visible": false } ]
+                        ],
+                        "view": "singleValue",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "SQL Activities Over Range",
+                        "period": 86400,
+                        "stat": "Sum",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true,
+                        "sparkline": false
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 7,
+                    "y": 13,
+                    "width": 9,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "CMT_PER_S", "TableName", "DB_THRUP", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Commits/Sec (TPS)", "region": "${AWS::Region}", "id": "m4" } ],
+                            [ ".", "RB_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m7", "region": "${AWS::Region}", "label": "Rollbacks/Sec" } ],
+                            [ ".", "ACT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "SQLs/Sec", "region": "${AWS::Region}", "id": "m3" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Database Activities Per Second",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true,
+                        "sparkline": false,
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 16,
+                    "y": 13,
+                    "width": 8,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "m3/m4", "label": "SQL/Commit", "id": "e1", "region": "${AWS::Region}" } ],
+                            [ "${cloudWatchNamespace}", "ACT_PER_S", "TableName", "DB_THRUP", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Activities/Sec", "region": "${AWS::Region}", "id": "m3", "visible": false } ],
+                            [ ".", "CMT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Commits/Sec", "region": "${AWS::Region}", "id": "m4", "visible": false } ],
+                            [ ".", "RB_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m7", "region": "${AWS::Region}", "label": "Rollbacks/Sec", "visible": false } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": true,
+                        "region": "${AWS::Region}",
+                        "title": "SQLs per Commit",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true,
+                        "sparkline": false,
+                        "annotations": {
+                            "horizontal": [
+                                {
+                                    "label": "If < 5 too frequent commits",
+                                    "value": 5,
+                                    "fill": "below"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 25,
+                    "width": 10,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "CEIL((m9*60/1000/1000)*10000)/10000", "label": "Rows Inserted", "id": "e9", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL((m11*60/1000/1000)*10000)/10000", "label": "Rows Modified", "id": "e11", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL((m10*60/1000/1000)*10000)/10000", "label": "Rows Returned", "id": "e10", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL((m13*60/1000/1000)*10000)/10000", "label": "Rows Updated", "id": "e12", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL((m8*60/1000/1000)*10000)/10000", "label": "Physical Reads", "id": "e8", "region": "${AWS::Region}" } ],
+                            [ "${cloudWatchNamespace}", "P_RD_PER_S", "TableName", "DB_THRUP", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "P_RD_PER_S", "region": "${AWS::Region}", "id": "m8", "visible": false } ],
+                            [ ".", "ROWS_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_INS_P_S", "region": "${AWS::Region}", "id": "m9", "visible": false } ],
+                            [ ".", "ROWS_RET_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_RET_P_S", "region": "${AWS::Region}", "id": "m10", "visible": false } ],
+                            [ ".", "ROWS_MOD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_MOD_P_S", "region": "${AWS::Region}", "id": "m11", "visible": false } ],
+                            [ ".", "ROWS_UPD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m13", "visible": false, "region": "${AWS::Region}" } ]
+                        ],
+                        "view": "singleValue",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Rows Processed Over Range in Millions",
+                        "period": 86400,
+                        "stat": "Sum",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true,
+                        "sparkline": false
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 9,
+                    "y": 19,
+                    "width": 8,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "ACT_PER_S", "TableName", "DB_THRUP", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "SQLs/Sec", "region": "${AWS::Region}", "id": "m3" } ],
+                            [ ".", "SEL_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Select/Sec", "region": "${AWS::Region}", "id": "m1" } ],
+                            [ ".", "UID_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "UID/Sec", "region": "${AWS::Region}", "id": "m2" } ],
+                            [ ".", "CMT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "CMT_PER_S", "region": "${AWS::Region}", "id": "m4", "visible": false } ],
+                            [ ".", "RB_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m7", "visible": false, "region": "${AWS::Region}" } ],
+                            [ ".", "DDLCK_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "DeadLocks/Sec", "region": "${AWS::Region}", "id": "m5" } ],
+                            [ ".", "PKG_CACHE_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "PKG_CACHE_INS_P_S", "region": "${AWS::Region}", "id": "m6", "visible": false } ],
+                            [ ".", "P_RD_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "P_RD_PER_S", "region": "${AWS::Region}", "id": "m8", "visible": false } ],
+                            [ ".", "ROWS_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_INS_P_S", "region": "${AWS::Region}", "id": "m9", "visible": false } ],
+                            [ ".", "ROWS_RET_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_RET_P_S", "region": "${AWS::Region}", "id": "m10", "visible": false } ],
+                            [ ".", "ROWS_MOD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_MOD_P_S", "region": "${AWS::Region}", "id": "m11", "visible": false } ],
+                            [ ".", "ROWS_UPD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m13", "visible": false, "region": "${AWS::Region}" } ],
+                            [ ".", "DB_MB_USED", ".", "DB_SIZE", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Database Size MB Used", "id": "m12", "visible": false } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "SQL Activities Per Sec",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true,
+                        "sparkline": false,
+                        "legend": {
+                            "position": "bottom"
+                        },
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 17,
+                    "y": 19,
+                    "width": 7,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "SEL_P_S", "TableName", "DB_THRUP", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Select/Sec", "region": "${AWS::Region}", "id": "m1", "visible": false } ],
+                            [ ".", "UID_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "UID/Sec", "region": "${AWS::Region}", "id": "m2", "visible": false } ],
+                            [ ".", "ACT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "SQLs/Sec", "region": "${AWS::Region}", "id": "m3", "visible": false } ],
+                            [ ".", "CMT_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "CMT_PER_S", "region": "${AWS::Region}", "id": "m4", "visible": false } ],
+                            [ ".", "RB_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m7", "visible": false, "region": "${AWS::Region}" } ],
+                            [ ".", "DDLCK_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "DeadLocks/Sec", "region": "${AWS::Region}", "id": "m5", "visible": false } ],
+                            [ ".", "PKG_CACHE_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Pkg Cache Insert / Sec", "region": "${AWS::Region}", "id": "m6" } ],
+                            [ ".", "P_RD_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "P_RD_PER_S", "region": "${AWS::Region}", "id": "m8", "visible": false } ],
+                            [ ".", "ROWS_INS_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_INS_P_S", "region": "${AWS::Region}", "id": "m9", "visible": false } ],
+                            [ ".", "ROWS_RET_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_RET_P_S", "region": "${AWS::Region}", "id": "m10", "visible": false } ],
+                            [ ".", "ROWS_MOD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "ROWS_MOD_P_S", "region": "${AWS::Region}", "id": "m11", "visible": false } ],
+                            [ ".", "ROWS_UPD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m13", "visible": false, "region": "${AWS::Region}" } ],
+                            [ ".", "DB_MB_USED", ".", "DB_SIZE", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Database Size MB Used", "id": "m12", "visible": false } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Package Cache Inserts Per Sec",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true,
+                        "sparkline": false,
+                        "legend": {
+                            "position": "bottom"
+                        },
+                        "annotations": {
+                            "horizontal": [
+                                {
+                                    "label": "Too many SQL compile",
+                                    "value": 10,
+                                    "fill": "above"
+                                }
+                            ]
+                        },
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 24,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Rows Processed",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 10,
+                    "y": 25,
+                    "width": 14,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "ROWS_INS_P_S", "TableName", "DB_THRUP", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Rows Inserted", "region": "${AWS::Region}", "id": "m9" } ],
+                            [ ".", "ROWS_UPD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "id": "m13", "region": "${AWS::Region}", "label": "Rows Updated" } ],
+                            [ ".", "ROWS_RET_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Rows Returned", "region": "${AWS::Region}", "id": "m10" } ],
+                            [ ".", "ROWS_MOD_P_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Rows Modified", "region": "${AWS::Region}", "id": "m11" } ],
+                            [ ".", "P_RD_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Physical Page Read", "region": "${AWS::Region}", "id": "m8" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Rows Processed/Sec",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true,
+                        "sparkline": false,
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 12,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Database Activities",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 5,
+                    "y": 7,
+                    "width": 6,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "SWAP_PAGES_IN", "TableName", "DB_SYSRE", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "id": "m3", "label": "Swap Pages In" } ],
+                            [ ".", "SWAP_PAGES_OUT", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "id": "m4", "label": "Swap Pages Out" } ]
+                        ],
+                        "view": "bar",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Memory Swap Pages 15 min",
+                        "period": 900,
+                        "stat": "Maximum",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 11,
+                    "y": 7,
+                    "width": 6,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "CEIL(m5)", "label": "Database Memory in MB", "id": "e3", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m6)", "label": "DBMS Memory in MB", "id": "e4", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m7)", "label": "Private Memory in MB", "id": "e6", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m8)", "label": "FMP Memory in MB", "id": "e5", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m9)", "label": "Application Memory MB", "id": "e7", "region": "${AWS::Region}", "visible": false } ],
+                            [ "${cloudWatchNamespace}", "MEMORY_SET_USED_HWM_MB", "TableName", "DB_MEMST", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", "SET_TYPE", "DATABASE", { "id": "m5", "label": "HWM Database Memory in MB", "region": "${AWS::Region}", "visible": false } ],
+                            [ "...", "DBMS", { "id": "m6", "region": "${AWS::Region}", "visible": false } ],
+                            [ "...", "PRIVATE", { "id": "m7", "region": "${AWS::Region}", "visible": false } ],
+                            [ "...", "FMP", { "id": "m8", "region": "${AWS::Region}", "visible": false } ],
+                            [ "...", "APPLICATION", { "id": "m9", "region": "${AWS::Region}", "visible": false } ]
+                        ],
+                        "view": "bar",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Database HWM Memory",
+                        "period": 900,
+                        "stat": "Maximum",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 17,
+                    "y": 7,
+                    "width": 7,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "CEIL(m5/1024)", "label": "Database Memory in GB", "id": "e3", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m6)", "label": "DBMS Memory in MB", "id": "e4", "region": "${AWS::Region}", "visible": false } ],
+                            [ { "expression": "CEIL(m7)", "label": "Private Memory in MB", "id": "e6", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m9)", "label": "Application Memory MB", "id": "e7", "region": "${AWS::Region}" } ],
+                            [ { "expression": "CEIL(m8)", "label": "FMP Memory in MB", "id": "e5", "region": "${AWS::Region}" } ],
+                            [ "${cloudWatchNamespace}", "MEMORY_SET_USED_HWM_MB", "TableName", "DB_MEMST", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", "SET_TYPE", "DATABASE", { "id": "m5", "label": "HWM Database Memory in MB", "region": "${AWS::Region}", "visible": false } ],
+                            [ "...", "DBMS", { "id": "m6", "region": "${AWS::Region}", "visible": false } ],
+                            [ "...", "PRIVATE", { "id": "m7", "region": "${AWS::Region}", "visible": false } ],
+                            [ "...", "FMP", { "id": "m8", "region": "${AWS::Region}", "visible": false } ],
+                            [ "...", "APPLICATION", { "id": "m9", "region": "${AWS::Region}", "visible": false } ]
+                        ],
+                        "view": "bar",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Other HWM Memory 15 Min",
+                        "period": 900,
+                        "stat": "Maximum",
+                        "setPeriodToTimeRange": true,
+                        "singleValueFullPrecision": true
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 32,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "ACTIVE_CIWT_RQ_RATIO", "TableName", "DB_CLACT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "label": "Active Client Wait Requests Ratio" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Active Client Wait Request Ratio",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "yAxis": {
+                            "left": {
+                                "min": 0,
+                                "label": "",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "label": "Percent",
+                                "min": 0,
+                                "showUnits": false
+                            }
+                        },
+                        "legend": {
+                            "position": "bottom"
+                        },
+                        "annotations": {
+                            "horizontal": [
+                                {
+                                    "label": "Investigate time in application server if >",
+                                    "value": 10,
+                                    "fill": "above"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 54,
+                    "width": 12,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "PCT_LOCK", "TableName", "DB_WAITT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Lock", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Latch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LG_DSK", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Log Disk" } ],
+                            [ ".", "PCT_LG_BUF", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Log Buffer" } ],
+                            [ ".", "PCT_PFTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Prefetch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LOB_PFTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "LOB Prefetch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_POOL_R", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Pool Read", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_DIR_R", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Direct Read", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_DIR_W", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Direct Write", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_TCPIP", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "TCPIP", "region": "${AWS::Region}" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Total Database Wait Time Distribution %",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "yAxis": {
+                            "left": {
+                                "min": 0,
+                                "max": 100,
+                                "showUnits": false,
+                                "label": "Percent"
+                            },
+                            "right": {
+                                "min": 0,
+                                "max": 100,
+                                "showUnits": false,
+                                "label": "Connections"
+                            }
+                        },
+                        "annotations": {
+                            "horizontal": [
+                                {
+                                    "label": "Total Wait Time",
+                                    "value": 35,
+                                    "fill": "below"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 39,
+                    "width": 11,
+                    "height": 7,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "PCT_LOCK", "TableName", "DB_WAITT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Lock", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Latch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LG_DSK", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Log Disk" } ],
+                            [ ".", "PCT_LG_BUF", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Log Buffer" } ],
+                            [ ".", "PCT_PFTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Prefetch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LOB_PFTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "LOB Prefetch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_POOL_R", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Pool Read", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_DIR_R", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Direct Read", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_DIR_W", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Direct Write", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_TCPIP", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "TCPIP", "region": "${AWS::Region}" } ]
+                        ],
+                        "view": "pie",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Wait Time Distribution Over Range",
+                        "period": 86400,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "yAxis": {
+                            "left": {
+                                "min": 0,
+                                "max": 100,
+                                "showUnits": false,
+                                "label": "Percent"
+                            },
+                            "right": {
+                                "min": 0,
+                                "max": 100,
+                                "showUnits": false,
+                                "label": "Connections"
+                            }
+                        },
+                        "annotations": {
+                            "horizontal": [
+                                {
+                                    "label": "Total Wait Time",
+                                    "value": 35,
+                                    "fill": "below"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 39,
+                    "width": 12,
+                    "height": 7,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "PCT_COMPILE", "TableName", "DB_TIMEB", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Compile%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_SECTION", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Section Time%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_SORT", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Sort%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_COL", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Columnar%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_COL_SYNOP", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Col Synopsis%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_COMMIT", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Commit%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_RBACK", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Rollback%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_CONN", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Connection%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_RTN_USR_CODE", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "User Routines%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_BACKUP", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Backup%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_IDX_BLD", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Index Build%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_RUNSTATS", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Runstats%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_REORG", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Reorg%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LOAD", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "LOAD%", "region": "${AWS::Region}" } ]
+                        ],
+                        "sparkline": true,
+                        "view": "pie",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "DB time breakdown % (including processing and wait time) over range",
+                        "period": 86400,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false
+                            }
+                        },
+                        "labels": {
+                            "visible": true
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 60,
+                    "width": 12,
+                    "height": 7,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "TOTAL_RQST_TM", "TableName", "DB_PROCT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "label": "Total Database Time", "visible": false } ],
+                            [ ".", "TOTAL_WAIT_TM", ".", "DB_WAITT", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Total Database Wait Time", "visible": false } ],
+                            [ ".", "TOTAL_PROC_TIME", ".", "DB_PROCT", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Total Database Processing Time", "visible": false } ],
+                            [ ".", "PCT_COMP_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Compilation Time" } ],
+                            [ ".", "PCT_SECT_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Processing Time" } ],
+                            [ ".", "PCT_COMMIT", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Commit Time" } ],
+                            [ ".", "PCT_RBACK", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Rollback Time" } ],
+                            [ ".", "PCT_CONN_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Connection Time" } ],
+                            [ ".", "PCT_SECT_SORT_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Sectional Sort Processing", "visible": false } ],
+                            [ ".", "PCT_COL_PROC", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Columnar Processing", "visible": false } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "DB Percentage Processing Times",
+                        "period": 60,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false
+                            }
+                        },
+                        "setPeriodToTimeRange": true,
+                        "labels": {
+                            "visible": true
+                        }
+                    }
+                },
+                {
+                    "type": "text",
+                    "x": 0,
+                    "y": 158,
+                    "width": 24,
+                    "height": 1,
+                    "properties": {
+                        "markdown": "# Top 10 Tables - Reorg required or not",
+                        "background": "transparent"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 159,
+                    "width": 24,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT AVG(reorg_required) FROM SCHEMA(\"${cloudWatchNamespace}\", Database,InstanceID,\"MEMBER\",TableName,tabname,tabschema) WHERE TableName = 'TBL_ROWMC' AND Database = '${database}' AND InstanceID = '${db2Instance}' GROUP BY tabschema, tabname ORDER BY AVG() DESC LIMIT 10", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60, "visible": false } ]
+                        ],
+                        "view": "gauge",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 60,
+                        "title": "Reorg Status (0 = Not required, 1 = Required)",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false,
+                                "label": "GiB",
+                                "min": 0,
+                                "max": 1
+                            },
+                            "right": {
+                                "label": "",
+                                "showUnits": true
+                            }
+                        },
+                        "annotations": {
+                            "horizontal": [
+                                {
+                                    "color": "#b2df8d",
+                                    "label": "Not Required",
+                                    "value": 0,
+                                    "fill": "above"
+                                },
+                                {
+                                    "color": "#f89256",
+                                    "label": "Required",
+                                    "value": 1,
+                                    "fill": "below"
+                                }
+                            ]
+                        },
+                        "setPeriodToTimeRange": true,
+                        "sparkline": false
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 16,
+                    "y": 150,
+                    "width": 8,
+                    "height": 8,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT AVG(AVG_WRITE_TIME) FROM SCHEMA(\"${cloudWatchNamespace}\",Database,InstanceID,\"MEMBER\",TBSP_NAME,TableName) WHERE InstanceID = '${db2Instance}' AND Database = '${database}' GROUP BY TBSP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60, "visible": false } ],
+                            [ { "expression": "q1/1024", "label": "", "id": "e1", "region": "${AWS::Region}" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 300,
+                        "title": "TS Avg Write Time",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false,
+                                "label": "GiB"
+                            },
+                            "right": {
+                                "label": "",
+                                "showUnits": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 128,
+                    "width": 12,
+                    "height": 5,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "LOG_WRITE_TIME_PER_IO_MS", "TableName", "DB_LOGWR", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "region": "${AWS::Region}", "yAxis": "left", "label": "Log Write Time IO in ms", "visible": false } ],
+                            [ ".", "LOG_WRITE_IO_PER_S", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "yAxis": "left", "label": "Log Write IO per Seconds" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 60,
+                        "title": "Log Write IO per Second",
+                        "yAxis": {
+                            "left": {
+                                "label": "Seconds",
+                                "showUnits": false
+                            },
+                            "right": {
+                                "showUnits": false
+                            }
+                        },
+                        "legend": {
+                            "position": "bottom"
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 46,
+                    "width": 11,
+                    "height": 7,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "PCT_LOCK", "TableName", "DB_WAITT", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Lock", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Latch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LG_DSK", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Log Disk" } ],
+                            [ ".", "PCT_LG_BUF", ".", ".", ".", ".", ".", ".", ".", ".", { "region": "${AWS::Region}", "label": "Log Buffer" } ],
+                            [ ".", "PCT_PFTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Prefetch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LOB_PFTCH", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "LOB Prefetch", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_POOL_R", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Pool Read", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_DIR_R", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Direct Read", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_DIR_W", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Direct Write", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_TCPIP", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "TCPIP", "region": "${AWS::Region}" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "Wait Time Distribution",
+                        "period": 60,
+                        "stat": "Average",
+                        "setPeriodToTimeRange": true,
+                        "yAxis": {
+                            "left": {
+                                "min": 0,
+                                "max": 100,
+                                "showUnits": false,
+                                "label": "Percent"
+                            },
+                            "right": {
+                                "min": 0,
+                                "max": 100,
+                                "showUnits": false,
+                                "label": "Connections"
+                            }
+                        },
+                        "annotations": {
+                            "horizontal": [
+                                {
+                                    "label": "Total Wait Time",
+                                    "value": 35,
+                                    "fill": "below"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 46,
+                    "width": 12,
+                    "height": 7,
+                    "properties": {
+                        "metrics": [
+                            [ "${cloudWatchNamespace}", "PCT_COMPILE", "TableName", "DB_TIMEB", "InstanceID", "${db2Instance}", "Database", "${database}", "MEMBER", "member_0", { "label": "Compile%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_SECTION", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Section Time%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_SORT", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Sort%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_COL", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Columnar%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_COL_SYNOP", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Col Synopsis%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_COMMIT", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Commit%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_RBACK", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Rollback%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_CONN", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Connection%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_RTN_USR_CODE", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "User Routines%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_BACKUP", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Backup%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_IDX_BLD", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Index Build%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_RUNSTATS", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Runstats%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_REORG", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "Reorg%", "region": "${AWS::Region}" } ],
+                            [ ".", "PCT_LOAD", ".", ".", ".", ".", ".", ".", ".", ".", { "label": "LOAD%", "region": "${AWS::Region}" } ]
+                        ],
+                        "sparkline": true,
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "title": "DB time breakdown % (including processing and wait time)",
+                        "period": 60,
+                        "stat": "Average",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false
+                            }
+                        },
+                        "labels": {
+                            "visible": true
+                        }
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 8,
+                    "y": 150,
+                    "width": 8,
+                    "height": 8,
+                    "properties": {
+                        "metrics": [
+                            [ { "expression": "SELECT AVG(AVG_READ_TIME) FROM SCHEMA(\"${cloudWatchNamespace}\",Database,InstanceID,\"MEMBER\",TBSP_NAME,TableName) WHERE InstanceID = '${db2Instance}' AND Database = '${database}' GROUP BY TBSP_NAME", "label": "", "id": "q1", "region": "${AWS::Region}", "period": 60, "visible": false } ],
+                            [ { "expression": "q1/1024", "label": "", "id": "e1", "region": "${AWS::Region}" } ]
+                        ],
+                        "view": "timeSeries",
+                        "stacked": false,
+                        "region": "${AWS::Region}",
+                        "stat": "Average",
+                        "period": 300,
+                        "title": "TS Avg Read Time",
+                        "yAxis": {
+                            "left": {
+                                "showUnits": false,
+                                "label": "GiB"
+                            },
+                            "right": {
+                                "label": "",
+                                "showUnits": true
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+Outputs:
+  DashboardURL:
+    Description: URL of the Db2 dashboard.
+    Value:
+      Fn::Sub: 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${DB2MonDashboard}'

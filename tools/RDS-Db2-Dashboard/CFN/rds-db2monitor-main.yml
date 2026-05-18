@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Deploys the RDS Db2 Monitor CloudWatch Dashboard."
+
+Parameters:
+  customName:
+    Type: String
+    Description: "Custom name for easy recognition"
+  instanceId:
+    Type: String
+    Description: The ID of the RDS Db2 instance.
+  database:
+    Type: String
+    Description: The name of the database.
+  cloudWatchNamespace:
+    Description: CloudWatch Namespace for DB2Mon metrics.
+    Type: String
+  rdsDb2DashboardStack:
+    Description: URL for the RDS Db2 Monitor Dashboard CFN Stack.
+    Type: String
+
+Resources:
+  DashStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref rdsDb2DashboardStack
+      Parameters:
+        customName: !Ref customName
+        cloudWatchNamespace: !Ref cloudWatchNamespace
+        database: !Ref database
+        db2Instance: !Ref instanceId
+        cloudWatchLogGroupName: !Join ['_', ["DB2MonLG", !Ref instanceId, !Ref database]]
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+
+Outputs:
+  DashboardURL:
+    Description: URL of the Db2 CloudWatch dashboard.
+    Value: !GetAtt DashStack.Outputs.DashboardURL
