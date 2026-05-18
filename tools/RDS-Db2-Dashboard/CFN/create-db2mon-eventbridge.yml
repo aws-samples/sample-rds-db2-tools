@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to schedule a Lambda function to run every 5 minutes with input parameters
+
+Parameters:
+  monitoredInstanceType:
+    Type: String
+    Description: Select Type of monitored DB2 database. EC2 or RDS?
+    Default: "ec2"
+    AllowedValues:
+     - "ec2"
+     - "rds"
+  customName:
+    Type: String
+    Description: "Custom name for easy recognition"    
+  topicName:
+    Type: String
+    Description: Specify SNS Topic name required for Notifications from DB2Mon. You will be required to add subsribers to this SNS topic.
+    Default: "DB2SNS"
+  snsTopicArn:
+    Type: String
+    Description: ARN of the shared regional SNS topic (DB2Mon-SNS-{region}). Created once by db2mon-unified.sh and reused across all stacks.
+  existingDLQName:
+    Type: String
+    Default: ""
+    Description: "Specify an existing SQS DLQ name to use. Leave empty to create a new DLQ."
+  kmsKeyArn:
+    Type: String
+    Default: ""
+    Description: "Optional KMS key ARN for DLQ SSE-KMS encryption. Leave empty to use SSE-SQS (AES-256)."
+  secretName:
+    Type: String
+    Description: Specify Secret name containing database credentials stored in AWS Secrets Manager.
+    Default: "DB2Secret"  
+  cloudWatchLogGroupPrefix:
+    Type: String
+    Description: Specify CloudWatch LogGroupName required for DB2Mon metrics. New LogGroup will be created if it doesn't exist.
+    Default: "DB2MonLG"
+  cloudWatchNamespace:
+    Type: String
+    Description: Specify CloudWatch Namespace required for DB2Mon metrics. New Namespace will be created if it doesn't exist.
+    Default: "DB2MonNS"
+  monitoringIntervalSeconds:
+    Type: Number
+    Description: Specify Monitoring interval in Seconds for DB2Mon
+    Default: 60
+    MinValue: 30
+    MaxValue: 300
+
+Conditions:
+  CreateNewDLQ: !Equals [ !Ref existingDLQName, "" ]
+  UseKMSKey: !Not [ !Equals [ !Ref kmsKeyArn, "" ] ]
+
+Resources:
+  DB2MonDLQ:
+    Type: AWS::SQS::Queue
+    Condition: CreateNewDLQ
+    Properties:
+      QueueName: !Sub "DB2MonDLQ-${customName}"
+      # SSE-KMS when a CMK is provided, otherwise SSE-SQS (AES-256 managed key)
+      KmsMasterKeyId: !If [ UseKMSKey, !Ref kmsKeyArn, !Ref "AWS::NoValue" ]
+      SqsManagedSseEnabled: !If [ UseKMSKey, !Ref "AWS::NoValue", true ]
+
+  SchedulerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "db2mon-SchedulerExecutionPolicy-${AWS::Region}"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: 
+                  Fn::ImportValue: "DB2MonFunctionArn" 
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt DB2MonDLQ.Arn
+  
+  LambdaScheduleRuleCW:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "db2mon-cw-${customName}"
+      ScheduleExpression: "cron(* * * * ? *)"
+      State: "DISABLED"  # Keep the schedule disabled on creation
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: 
+          Fn::ImportValue: "DB2MonFunctionArn"   # Importing the Lambda Function ARN
+        RoleArn: !GetAtt SchedulerExecutionRole.Arn
+        Input: 
+            Fn::Sub: |                            # Pass payload (param1 and param2) to Lambda function
+              {
+                "debugMode": "False",
+                "publishToS3": "False",
+                "publishToCW": "True",
+                "monitoringIntervalSeconds": ${monitoringIntervalSeconds},
+                "cloudWatchNamespace": "${cloudWatchNamespace}",
+                "cloudWatchLogGroupPrefix": "${cloudWatchLogGroupPrefix}",
+                "secretName": "${secretName}",
+                "topicName": "DB2Mon-SNS-${AWS::Region}",
+                "monitoredInstanceType": "${monitoredInstanceType}"
+              }
+        RetryPolicy:
+          MaximumEventAgeInSeconds: 90          # Optional: Retry policy for Lambda invocations
+          MaximumRetryAttempts: 2
+        DeadLetterConfig:
+          Arn: !GetAtt DB2MonDLQ.Arn
+
+
+Outputs:
+  LambdaScheduleRuleCWArn:
+    Description: The ARN of the created CloudWatch Event Rule
+    Value: !GetAtt LambdaScheduleRuleCW.Arn
+  
+  SNSTopicArn:
+    Description: ARN of the shared SNS topic used by this stack
+    Value: !Ref snsTopicArn
+
+  SchedulerExecutionRole:
+    Description: Db2Mon Scheduler execution role ARN
+    Value: !GetAtt SchedulerExecutionRole.Arn
+
+  DLQArn:
+    Description: "ARN of the DLQ used by this stack."
+    Value: !If
+      - CreateNewDLQ
+      - !GetAtt DB2MonDLQ.Arn
+      - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${existingDLQName}"
