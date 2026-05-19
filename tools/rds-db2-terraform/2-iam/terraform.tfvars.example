@@ -1,0 +1,10 @@
+aws_region            = "us-east-1"
+tag                   = "MYPROJECT"
+environment           = "prod"
+owner                 = "db-team"
+monitoring_role_name  = ""
+create_s3_role        = false
+s3_backup_bucket_name = ""
+create_directory_role = false
+create_audit_role     = false
+audit_bucket_name     = ""

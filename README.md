@@ -31,6 +31,9 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 - [Use HammerDB to Run Performance Tests on Amazon RDS for DB2](https://aws.amazon.com/blogs/database/use-hammerdb-to-run-performance-tests-on-amazon-rds-for-db2/)
 - [Create a Monitoring Dashboard for Amazon RDS for DB2](https://aws.amazon.com/blogs/database/create-monitoring-dashboard-for-amazon-rds-for-db2/)
 
+### Infrastructure as Code
+- [Deploying Amazon RDS for Db2 using Terraform](https://aws.amazon.com/blogs/database/deploying-amazon-rds-for-db2-using-terraform/)
+
 ## 🛠️ Tools & Scripts
 
 ### Install Db2 client for Amazon RDS for Db2
@@ -41,6 +44,9 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 
 ### Performance Tools
 - **[RDS for DB2 Monitoring Dashboard](tools/RDS-Db2-Dashboard/)**: Lambda-based dashboard that collects DB2 performance metrics and publishes them to Amazon CloudWatch and Amazon S3, with EventBridge schedules and CloudFormation deployment. Companion to the [Create a Monitoring Dashboard for Amazon RDS for DB2](https://aws.amazon.com/blogs/database/create-monitoring-dashboard-for-amazon-rds-for-db2/) blog post.
+
+### Infrastructure as Code
+- **[RDS for Db2 Terraform Template](tools/rds-db2-terraform/)**: Modular Terraform template (seven numbered modules with shared remote state) for provisioning Amazon RDS for Db2 end-to-end — networking, IAM, KMS, parameter group, the RDS instance, and AWS License Manager BYOL tracking. Supports commercial and GovCloud (US) Regions. Companion to the [Deploying Amazon RDS for Db2 using Terraform](https://aws.amazon.com/blogs/database/deploying-amazon-rds-for-db2-using-terraform/) blog post.
 
 ### Security Tools
 - **Coming Soon**: Kerberos configuration helpers
