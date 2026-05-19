@@ -7,3 +7,6 @@
 # Other non-essential
 cp2s3.sh
 /docs
+
+# Lambda build artifacts (published via GitHub Releases / S3, not git)
+Lambda/**/*.zip
