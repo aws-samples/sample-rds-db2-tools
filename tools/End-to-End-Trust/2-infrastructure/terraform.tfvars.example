@@ -1,0 +1,32 @@
+# AWS Configuration (auto-populated from 0-backend-setup)
+# Only uncomment if you need to override
+# aws_region = "us-east-1"
+
+# VPC Configuration
+vpc_id     = "vpc-xxxxxxxxxxxxxxxxx"
+subnet_ids = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy"]
+
+# EC2 Configuration
+ec2_subnet_id       = "subnet-xxxxxxxxxxxxxxxxx"
+security_group_ids  = ["sg-xxxxxxxxxxxxxxxxx"]
+ec2_instance_type   = "t3.small"
+
+# Certificate Configuration (auto-populated from prerequisites)
+# certificate_secret_arn = ""  # Leave empty to auto-fetch
+# certificate_arn        = ""  # Leave empty to auto-fetch
+# domain_name            = ""  # Leave empty to auto-fetch
+
+# NLB Configuration
+nlb_scheme = "internal"
+nlb_cidr   = "10.0.0.0/16"
+
+# S3 bucket for NLB access logs — must be globally unique
+# Recommended format: <company>-nlb-logs-<account-id>-<region>
+nlb_logs_bucket_name = "my-company-nlb-logs-123456789012-us-east-1"
+
+# Listener Ports - Add all ports your clients will use
+# These ports will be opened on NLB and EC2 proxy
+listener_ports = [443, 50001, 1443, 50443]
+
+# Tagging
+project_tag = "rdsdb2-proxy"

@@ -1,3 +1,22 @@
 sample-rds-db2-tools.code-workspace
-tools/End-to-End-Trust/
 .DS_Store
+
+# Terraform artifacts (apply to all tools/*/Terraform projects)
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/*.tfstate
+**/*.tfstate.*
+
+# Real terraform.tfvars (keep .example templates)
+**/terraform.tfvars
+!**/terraform.tfvars.example
+
+# Terraform crash and override files
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

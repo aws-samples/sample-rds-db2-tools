@@ -1,0 +1,18 @@
+# AWS region for backend resources
+aws_region = "us-east-1"
+
+# S3 bucket name — must be globally unique
+# Recommended: <company>-terraform-state-<account-id>-<region>
+state_bucket_name = "my-company-terraform-state-123456789012-us-east-1"
+
+# DynamoDB table name for state locking
+lock_table_name = "terraform-state-lock"
+
+# ARN of the IAM principal that runs Terraform.
+# This is the ONLY principal allowed to read state files and decrypt the KMS key.
+# Get your current ARN with: aws sts get-caller-identity --query Arn --output text
+#
+# IAM user:  arn:aws:iam::123456789012:user/terraform-rds-proxy
+# IAM role:  arn:aws:iam::123456789012:role/TerraformRDSProxyRole
+# SSO role:  arn:aws:iam::123456789012:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_TerraformRDSProxy_xxxx
+terraform_principal_arn = "arn:aws:iam::123456789012:role/TerraformRDSProxyRole"
