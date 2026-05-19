@@ -1,0 +1,6 @@
+# AWS region is auto-populated from 0-backend-setup
+# Only uncomment if you need to override
+# aws_region   = "us-east-1"
+
+domain_name  = "db.mydomain.com"
+organization = "MyCompany"

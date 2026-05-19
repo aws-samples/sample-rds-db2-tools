@@ -1,0 +1,12 @@
+# AWS region is auto-populated from 0-backend-setup
+# Only uncomment if you need to override
+# aws_region = "us-east-1"
+
+# RDS Mappings: "client-domain:client-port" = "rds-endpoint:rds-port"
+# The client port is what your application uses to connect
+# The RDS port is the actual RDS endpoint port
+rds_mappings = {
+  "db1.db.mydomain.com:50001" = "rds-instance-1.us-east-1.rds.amazonaws.com:50001"
+  "db2.db.mydomain.com:1443"  = "rds-instance-2.us-east-1.rds.amazonaws.com:1443"
+  "db3.db.mydomain.com:443"   = "rds-instance-3.us-east-1.rds.amazonaws.com:50443"
+}

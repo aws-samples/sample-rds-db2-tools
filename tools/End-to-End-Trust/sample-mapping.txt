@@ -1,0 +1,15 @@
+# Sample mapping file for the 3-mappings module.
+# Copy 3-mappings/terraform.tfvars.example to 3-mappings/terraform.tfvars
+# and edit the rds_mappings block below.
+
+# AWS region is auto-populated from 0-backend-setup.
+# Only uncomment if you need to override.
+# aws_region = "us-east-1"
+
+# RDS Mappings: "client-domain:client-port" = "rds-endpoint:rds-port"
+# - The client port is what your application uses to connect.
+# - The RDS port is the actual RDS endpoint port.
+# - Replace the example endpoints below with your own RDS for Db2 endpoints.
+rds_mappings = {
+  "db1.db.mydomain.com:50443" = "rds-instance-1.<region>.rds.amazonaws.com:50443"
+}
