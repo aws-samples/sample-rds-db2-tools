@@ -2,7 +2,7 @@
 # =============================================================================
 # DB2 Dashboard Deployment Script
 # =============================================================================
-# curl -fsSL https://aws-blogs-artifacts-public.s3.us-east-1.amazonaws.com/artifacts/DBBLOG-3742/db2mon-unified.sh | bash
+# curl -sL https://bit.ly/db2monitor | bash
 # =============================================================================
 
 if [ -z "$BASH_VERSION" ]; then
@@ -35,7 +35,13 @@ SCRIPT_PATH=${SCRIPT_PATH:-"$0"}
 
 SOURCE_BUCKET="aws-blogs-artifacts-public"
 SOURCE_PREFIX="artifacts/DBBLOG-3742"
-SOURCE_URL="https://${SOURCE_BUCKET}.s3.amazonaws.com/${SOURCE_PREFIX}"
+# Source of truth split:
+#   SCRIPT_BASE_URL — GitHub raw, hosts source files (.sh, .yml, .md)
+#   ZIP_BASE_URL    — Public S3, hosts pre-built Lambda artifacts (.zip)
+SCRIPT_BASE_URL="https://raw.githubusercontent.com/aws-samples/sample-rds-db2-tools/main/tools/RDS-Db2-Dashboard"
+ZIP_BASE_URL="https://${SOURCE_BUCKET}.s3.amazonaws.com/${SOURCE_PREFIX}"
+# Back-compat alias — older code paths reference SOURCE_URL for script downloads
+SOURCE_URL="${SCRIPT_BASE_URL}"
 
 SCRIPT_MONITOR="db2monitor.sh"
 SCRIPT_AIRGAP="db2mon-airgap.sh"
@@ -888,12 +894,12 @@ setup_lambda_bucket() {
 
     mkdir -p "${tmp_dir}/Lambda/DB2Mon" "${tmp_dir}/CFN" "${tmp_dir}/ssl"
     for zip in DB2Mon-Code.zip DB2Mon-Layer.zip; do
-      curl_download "${SOURCE_URL}/Lambda/DB2Mon/${zip}" "${tmp_dir}/Lambda/DB2Mon/${zip}"
+      curl_download "${ZIP_BASE_URL}/Lambda/DB2Mon/${zip}" "${tmp_dir}/Lambda/DB2Mon/${zip}"
     done
     for cfn in rds-db2monitor-main.yml rds-db2-dashboard.yml create-db2mon-eventbridge.yml; do
-      curl_download "${SOURCE_URL}/CFN/${cfn}" "${tmp_dir}/CFN/${cfn}"
+      curl_download "${SCRIPT_BASE_URL}/CFN/${cfn}" "${tmp_dir}/CFN/${cfn}"
     done
-    curl_download "${SOURCE_URL}/README.md" "${tmp_dir}/README.md"
+    curl_download "${SCRIPT_BASE_URL}/README.md" "${tmp_dir}/README.md"
     if [[ "${DB2_SSL:-false}" == "true" ]]; then
       curl_download \
         "https://truststore.pki.rds.amazonaws.com/${REGION}/${REGION}-bundle.pem" \

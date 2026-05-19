@@ -1,10 +1,20 @@
-# Amazon RDS for DB2 Monitoring Dashboard
+# Amazon RDS for Db2 Monitoring Dashboard
 
 ## Overview
 
 This package deploys a CloudWatch monitoring dashboard for Amazon RDS for Db2.
 It creates a Lambda function, EventBridge schedules, CloudWatch dashboards, and
 all required VPC endpoints automatically.
+
+Source of truth:
+
+- **Source code** (scripts, CFN templates, Lambda Python sources, this README) — GitHub:
+  [`aws-samples/sample-rds-db2-tools`](https://github.com/aws-samples/sample-rds-db2-tools/tree/main/tools/RDS-Db2-Dashboard)
+- **Pre-built Lambda artifacts** (`DB2Mon-Code.zip`, `DB2Mon-Layer.zip`) — public S3:
+  `s3://aws-blogs-artifacts-public/artifacts/DBBLOG-3742/Lambda/DB2Mon/`
+
+The entry-point `db2mon-unified.sh` is mirrored to S3 as well so the
+short URL `https://bit.ly/db2monitor` continues to resolve to a working installer.
 
 ## Scripts
 
@@ -31,9 +41,14 @@ all required VPC endpoints automatically.
 
 **1. Download the script:**
 ```bash
-curl -fsSL https://aws-blogs-artifacts-public.s3.us-east-1.amazonaws.com/artifacts/DBBLOG-3742/db2mon-unified.sh | bash
+curl -sL https://bit.ly/db2monitor | bash
 ```
 This saves `db2monitor.sh` and companion scripts to the current directory.
+
+If `bit.ly` is blocked in your environment, use the GitHub raw URL directly:
+```bash
+curl -fsSL https://raw.githubusercontent.com/aws-samples/sample-rds-db2-tools/main/tools/RDS-Db2-Dashboard/db2mon-unified.sh | bash
+```
 
 **2. (Optional) Pre-configure:**
 ```bash
@@ -76,7 +91,7 @@ REGION=us-east-1 DB_INSTANCE_ID=mydb2 DBNAME=DB2DB TAG=PROD \
 
 ```bash
 # Get the airgap script
-curl -fsSL https://aws-blogs-artifacts-public.s3.us-east-1.amazonaws.com/artifacts/DBBLOG-3742/db2mon-unified.sh | bash
+curl -sL https://bit.ly/db2monitor | bash
 
 # Download all artifacts for your target region
 ./db2mon-airgap.sh --mode download --region <region>
@@ -256,49 +271,51 @@ For issues, run diagnostics first:
 ./db2mon-diag.sh --region <region>
 ```
 
-## Optional - Building Lambda Function Archive and Layer
+---
 
-The Lambda function `DB2Mon-Code.zip` and the layer `DB2Mon-Layer.zip` are downloaded through the script and uploaded to your local Amazon S3 bucket. 
+## Optional — Building the Lambda Function Archive and Layer
 
-If you want to makee changes in the Lambda function, you have the following two choices.
+The Lambda function `DB2Mon-Code.zip` and the layer `DB2Mon-Layer.zip` are
+downloaded by `db2monitor.sh` and uploaded to your local Amazon S3 bucket.
 
-- Open Lambda function in AWS Console, make changes and publish the new code.
-- Make changes locally in your development environment, zip the function and publish the new Lambda function either using the console or by using AWS CLI commamd.
+If you want to make changes to the Lambda function, you have two choices:
 
-```
-cd DB2Mon-Code
+- Open the Lambda function in the AWS Console, make changes, and publish the new code.
+- Make changes locally in your development environment, zip the function, and publish
+  the new Lambda function using the console or the AWS CLI.
+
+```bash
+cd Lambda/DB2Mon/DB2Mon-Code
 zip -r ../DB2Mon-Code.zip .
 ```
 
-### Building Lambda Layer
+### Building the Lambda Layer
 
-Building Lamvda layer is a bit tricky as it requires that the build process of the Lambda Layer is done on a AL2023 Linux EC2 and not on your MacBook or Windows Laptop. Install Python3.12 on AL2023 and follow the process below to build a compact Lambda Layer.
+Building the Lambda layer is a bit tricky — the build process must run on an
+AL2023 EC2 instance, not on a MacBook or Windows laptop. Install Python 3.12
+on AL2023 and follow the process below to build a compact Lambda Layer.
 
-```
+```bash
 # --- Layer zip ---
 rm -rf python ../DB2Mon-Layer.zip
 mkdir -p python
 cd python
-sudo pip3.12 install pandas -t . 
+sudo pip3.12 install pandas -t .
 sudo pip3.12 install ibm_db -t .
-# The following is required by db2 client to use PAM
-# The following lib is required from AL 2023 for Python 3.12
-sudo cp /usr/lib64/libpam.so.0 ../ibm_db.libs/
+# The following lib is required from AL 2023 for Python 3.12 (Db2 client uses PAM)
+sudo cp /usr/lib64/libpam.so.0 ./ibm_db.libs/
 
-# Remove directories and files not required in the Layer to keep the size small
+# Trim files not required at runtime to keep layer size small
 rm -rf __pycache__/
 rm -rf *.dist-info
-find . -name "tests" -type d | xargs -I{} rm -rf {} 
-find . -name "docs" -type d | xargs -I{} -rf {} 
-find . -name "__pycache__" -type d | xargs -I{} rm -rf {}
-# Boto is not required as Lambda runtime includes boto automatically
+find . -name "tests"      -type d -exec rm -rf {} +
+find . -name "docs"       -type d -exec rm -rf {} +
+find . -name "__pycache__" -type d -exec rm -rf {} +
+# boto is excluded — Lambda runtime already bundles it
 rm -rf boto*
 
-zip -r ../DB2Mon-Layer.zip python/
+cd ..
+zip -r DB2Mon-Layer.zip python/
 rm -rf python
-echo "Built: ../DB2Mon-Layer.zip"
+echo "Built: DB2Mon-Layer.zip"
 ```
-
-
-
-

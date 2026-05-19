@@ -35,6 +35,11 @@ log_error()   { echo -e "${RED}[  ERROR]${NC} $(date '+%H:%M:%S') - $1" >&2; }
 
 SOURCE_BUCKET="aws-blogs-artifacts-public"
 SOURCE_PREFIX="artifacts/DBBLOG-3742"
+# Source of truth split:
+#   SCRIPT_BASE_URL — GitHub raw, hosts source files (.sh, .yml, .md)
+#   ZIP_BASE_URL    — Public S3, hosts pre-built Lambda artifacts (.zip)
+SCRIPT_BASE_URL="https://raw.githubusercontent.com/aws-samples/sample-rds-db2-tools/main/tools/RDS-Db2-Dashboard"
+ZIP_BASE_URL="https://${SOURCE_BUCKET}.s3.amazonaws.com/${SOURCE_PREFIX}"
 ARTIFACTS_DIR="./db2mon-artifacts"
 MODE=${MODE:-"both"}
 
@@ -46,12 +51,12 @@ fi
 
 handle_curl_pipe_download() {
   log_info "Downloading ${SCRIPT_AIRGAP} ..."
-  curl -fsSL "https://${SOURCE_BUCKET}.s3.amazonaws.com/${SOURCE_PREFIX}/${SCRIPT_AIRGAP}" \
+  curl -fsSL "${SCRIPT_BASE_URL}/${SCRIPT_AIRGAP}" \
     -o "./${SCRIPT_AIRGAP}" && chmod +x "./${SCRIPT_AIRGAP}"
   log_success "Saved: ./${SCRIPT_AIRGAP}"
 
   log_info "Downloading ${SCRIPT_MONITOR} ..."
-  curl -fsSL "https://${SOURCE_BUCKET}.s3.amazonaws.com/${SOURCE_PREFIX}/db2mon-unified.sh" \
+  curl -fsSL "${SCRIPT_BASE_URL}/db2mon-unified.sh" \
     -o "./${SCRIPT_MONITOR}" && chmod +x "./${SCRIPT_MONITOR}"
   log_success "Saved: ./${SCRIPT_MONITOR}"
 
@@ -190,21 +195,21 @@ do_download() {
 
   log_info "Downloading Lambda ZIPs..."
   for zip in DB2Mon-Code.zip DB2Mon-Layer.zip; do
-    curl -fsSL "https://${SOURCE_BUCKET}.s3.amazonaws.com/${SOURCE_PREFIX}/Lambda/DB2Mon/${zip}" \
+    curl -fsSL "${ZIP_BASE_URL}/Lambda/DB2Mon/${zip}" \
       -o "${ARTIFACTS_DIR}/Lambda/DB2Mon/${zip}"
     log_success "Downloaded: Lambda/DB2Mon/${zip}"
   done
 
   log_info "Downloading CFN templates..."
   for cfn in rds-db2monitor-main.yml rds-db2-dashboard.yml create-db2mon-eventbridge.yml; do
-    curl -fsSL "https://${SOURCE_BUCKET}.s3.amazonaws.com/${SOURCE_PREFIX}/CFN/${cfn}" \
+    curl -fsSL "${SCRIPT_BASE_URL}/CFN/${cfn}" \
       -o "${ARTIFACTS_DIR}/CFN/${cfn}"
     log_success "Downloaded: CFN/${cfn}"
   done
 
   log_info "Downloading companion scripts..."
   for script in "$SCRIPT_DIAG" "$SCRIPT_CLEANUP" "README.md"; do
-    curl -fsSL "https://${SOURCE_BUCKET}.s3.amazonaws.com/${SOURCE_PREFIX}/${script}" \
+    curl -fsSL "${SCRIPT_BASE_URL}/${script}" \
       -o "${ARTIFACTS_DIR}/scripts/${script}"
     log_success "Downloaded: scripts/${script}"
   done
