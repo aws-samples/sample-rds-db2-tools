@@ -5,10 +5,15 @@ Enterprise-grade Terraform setup with full audit trail through Git.
 ## Key Features
 
 ✅ **Multi-Port Support** - Clients use their existing connection strings (any port)
+
 ✅ **Zero Application Changes** - No need to modify Db2 client configurations
+
 ✅ **SNI-Based Routing** - Multiple databases per port using domain names
+
 ✅ **Dynamic Configuration** - Add/remove databases without redeploying infrastructure
+
 ✅ **GitOps Ready** - All changes via Git commits with full audit trail
+
 ✅ **Modular Design** - Separate concerns for easier management
 
 ## Quick Links
