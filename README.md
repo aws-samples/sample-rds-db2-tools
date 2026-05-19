@@ -9,6 +9,7 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 - [Near-Zero Downtime Migrations from Self-Managed DB2 to Amazon RDS for DB2 using IBM Q Replication](https://aws.amazon.com/blogs/database/near-zero-downtime-migrations-from-self-managed-db2-on-aix-or-windows-to-amazon-rds-for-db2-using-ibm-q-replication/)
 - [Migrating Tables from IBM DB2 for z/OS to Amazon RDS for DB2](https://aws.amazon.com/blogs/database/migrating-tables-from-ibm-db2-for-z-os-to-amazon-rds-for-db2/)
 - [Performance Optimization of Full Load and Ongoing Replication Tasks](https://aws.amazon.com/blogs/database/performance-optimization-of-full-load-and-ongoing-replication-tasks-from-self-managed-db2-to-amazon-rds-for-db2/)
+- [Choosing the Right Code Page and Collation for Migration from Mainframe DB2 to Amazon RDS for DB2](https://aws.amazon.com/blogs/database/choosing-the-right-code-page-and-collation-for-migration-from-mainframe-db2-to-amazon-rds-for-db2/)
 
 ### High Availability & Disaster Recovery
 - [Create Self-Managed Replicas for Read Scaling and Disaster Recovery](https://aws.amazon.com/blogs/database/create-self-managed-replicas-for-an-amazon-rds-for-db2-instance-for-read-scaling-and-disaster-recovery/)
@@ -18,14 +19,17 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 - [Authenticate Amazon RDS for DB2 using On-Premises Microsoft Active Directory and Kerberos](https://aws.amazon.com/blogs/database/authenticate-amazon-rds-for-db2-instances-using-on-premises-microsoft-active-directory-and-kerberos/)
 - [Enable Kerberos Authentication with Amazon RDS for DB2](https://aws.amazon.com/blogs/database/enable-kerberos-authentication-with-amazon-rds-for-db2/)
 - [Enhance Security with AWS Managed Microsoft AD](https://aws.amazon.com/blogs/modernizing-with-aws/enhance-security-of-your-aws-app-integration-with-aws-managed-microsoft-ad/)
+- [Create an SSL Connection to Amazon RDS for DB2 in Java without Keystore or Keytool](https://aws.amazon.com/blogs/database/create-an-ssl-connection-to-amazon-rds-for-db2-in-java-without-keystore-or-keytool/)
 
 ### Networking & Connectivity
 - [Best Practices for Creating a VPC for Amazon RDS for DB2](https://aws.amazon.com/blogs/database/best-practices-for-creating-a-vpc-for-amazon-rds-for-db2/)
 - [Join Amazon RDS for DB2 Instances Across Accounts to a Single Shared Domain](https://aws.amazon.com/blogs/database/join-your-amazon-rds-for-db2-instances-across-accounts-to-a-single-shared-domain/)
 - [Connect to Amazon RDS for DB2 using AWS CloudShell](https://aws.amazon.com/blogs/database/connect-to-amazon-rds-for-db2-using-aws-cloudshell/)
+- [Connect to Amazon RDS for DB2 from Your Laptop](https://aws.amazon.com/blogs/database/connect-to-amazon-rds-for-db2-from-your-laptop/)
 
 ### Performance & Testing
 - [Use HammerDB to Run Performance Tests on Amazon RDS for DB2](https://aws.amazon.com/blogs/database/use-hammerdb-to-run-performance-tests-on-amazon-rds-for-db2/)
+- [Create a Monitoring Dashboard for Amazon RDS for DB2](https://aws.amazon.com/blogs/database/create-monitoring-dashboard-for-amazon-rds-for-db2/)
 
 ## 🛠️ Tools & Scripts
 
@@ -36,8 +40,7 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 - **[Db2 Migration Prereqcheck tool](tools/migrationprecheck/)**: Scripts for checking if the self-managed Db2 database on Linux is ready for migration to Amazon RDS for Db2.
 
 ### Performance Tools
-- **Coming Soon**: HammerDB configuration templates
-- **Coming Soon**: Performance monitoring scripts
+- **[RDS for DB2 Monitoring Dashboard](tools/RDS-Db2-Dashboard/)**: Lambda-based dashboard that collects DB2 performance metrics and publishes them to Amazon CloudWatch and Amazon S3, with EventBridge schedules and CloudFormation deployment. Companion to the [Create a Monitoring Dashboard for Amazon RDS for DB2](https://aws.amazon.com/blogs/database/create-monitoring-dashboard-for-amazon-rds-for-db2/) blog post.
 
 ### Security Tools
 - **Coming Soon**: Kerberos configuration helpers
