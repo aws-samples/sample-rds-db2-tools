@@ -1,0 +1,10 @@
+aws_region           = "us-east-1"
+tag                  = "MYPROJECT"
+environment          = "prod"
+owner                = "db-team"
+# Valid combos: 11.5 => se|ae, 12.1 => ce|se|ae
+engine_edition       = "se"
+engine_major_version = "11.5"
+parameter_group_name = ""
+ibm_customer_id      = "1234567"
+ibm_site_id          = "1234567890"

@@ -1,0 +1,9 @@
+aws_region                 = "us-east-1"
+vpc_id                     = "vpc-0123456789abcdef0"
+security_group_id          = "sg-0123456789abcdef0"
+publicly_accessible        = false
+db_subnet_group_name       = ""   # leave empty to auto-create
+create_interface_endpoints = false
+tag                        = "MYPROJECT"
+environment                = "prod"
+owner                      = "db-team"

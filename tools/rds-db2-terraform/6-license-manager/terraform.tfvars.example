@@ -1,0 +1,7 @@
+aws_region      = "us-east-1"
+tag             = "MYPROJECT"
+environment     = "prod"
+owner           = "db-team"
+db2_edition     = "SE"          # SE for db2-se, AE for db2-ae
+license_count   = 8             # vCPU count of your instance class (e.g. db.r6i.2xlarge = 8 vCPUs)
+db_instance_arn = "arn:aws:rds:us-east-1:123456789012:db:my-rds-db2-instance"

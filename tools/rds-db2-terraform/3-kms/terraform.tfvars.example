@@ -1,0 +1,6 @@
+aws_region       = "us-east-1"
+tag              = "MYPROJECT"
+environment      = "prod"
+owner            = "db-team"
+kms_key_arn      = ""
+multi_region_key = true

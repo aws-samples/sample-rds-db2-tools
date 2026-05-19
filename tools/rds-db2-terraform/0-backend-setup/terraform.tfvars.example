@@ -1,0 +1,6 @@
+aws_region        = "us-east-1"
+state_bucket_name = "my-rds-db2-terraform-state-123456"
+lock_table_name   = "rds-db2-terraform-lock"
+project_tag       = "RDS-DB2"
+environment       = "prod"
+owner             = "db-team"
