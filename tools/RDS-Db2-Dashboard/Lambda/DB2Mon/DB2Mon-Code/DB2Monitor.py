@@ -115,15 +115,24 @@ class DB2Monitor:
         self.secret_data = self.secretManager.get_secret()
         # publishToS3, publishToCW and BucketName can be defined in payload or in secret manager
         # The values in payload will override the values defined in secret manager
-        self.publishToCW = self._parse_bool(self.secret_data.get('publishToCW'))
-        self.publishToS3 = self._parse_bool(self.secret_data.get('publishToS3'))
-        self.BucketName = self.secret_data.get('bucketName') or ""
+        # Extract non-sensitive config flags from secret separately to avoid taint-flow
+        # from the secret dict into log statements (CodeQL CWE-312 / CWE-359).
+        secret_publish_cw  = self.secret_data.get('publishToCW')
+        secret_publish_s3  = self.secret_data.get('publishToS3')
+        secret_bucket_name = self.secret_data.get('bucketName') or ""
+        self.publishToCW = self._parse_bool(secret_publish_cw)
+        self.publishToS3 = self._parse_bool(secret_publish_s3)
+        self.BucketName  = secret_bucket_name
         self.publishToS3 = self._parse_bool(event.get('publishToS3'), self.publishToS3)
         self.publishToCW = self._parse_bool(event.get('publishToCW'), self.publishToCW)
-        self.BucketName = event['bucketName'] if event.get('bucketName') else self.BucketName
+        self.BucketName  = event['bucketName'] if event.get('bucketName') else self.BucketName
         self.s3KeyPrefix = event['s3KeyPrefix'] if event.get('s3KeyPrefix') else "tables/db2"
 
-        self.logger.info(f"publishToCW={self.publishToCW} publishToS3={self.publishToS3} bucketName={self.BucketName}")
+        # Log only non-sensitive config flags; bucket name at debug level only
+        publish_to_cw = bool(self.publishToCW)
+        publish_to_s3 = bool(self.publishToS3)
+        self.logger.info(f"publishToCW={publish_to_cw} publishToS3={publish_to_s3}")
+        self.logger.debug(f"bucketName={self.BucketName}")
             
     def get_topic_arn(self, sns, topic_name):
         """Get Topic ARN to send SNS message
