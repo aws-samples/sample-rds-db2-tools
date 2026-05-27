@@ -2,6 +2,10 @@
 
 Enterprise-grade Terraform setup with full audit trail through Git.
 
+> **Companion to:** [Preserving Custom Domain Names for Amazon RDS for Db2](https://aws.amazon.com/blogs/database/preserving-custom-domain-names-for-amazon-rds-for-db2/) (AWS Database Blog)
+>
+> **Source of truth:** [`aws-samples/sample-rds-db2-tools`](https://github.com/aws-samples/sample-rds-db2-tools/tree/main/tools/End-to-End-Trust)
+
 ## Key Features
 
 ✅ **Multi-Port Support** - Clients use their existing connection strings (any port)
