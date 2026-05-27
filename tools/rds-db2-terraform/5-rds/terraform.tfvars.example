@@ -8,7 +8,11 @@ engine_version         = "11.5.9.0"
 engine_major_version   = "11.5"
 instance_class         = "db.r6i.2xlarge"
 master_username        = "admin"
-master_password        = "Passw0rd!"
+# master_password is intentionally omitted — set manage_master_user_password = true (below)
+# to have RDS generate and rotate the password in AWS Secrets Manager.
+# Only set master_password if you are NOT using manage_master_user_password.
+# master_password      = "REPLACE_WITH_STRONG_PASSWORD"
+manage_master_user_password = true
 db_name                = "DB2DB"
 db2_port               = 8392
 vpc_id                 = "vpc-0123456789abcdef0"
