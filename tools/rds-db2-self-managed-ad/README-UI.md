@@ -82,6 +82,8 @@ All nine required permissions are granted in a single ADSI Edit session.
 9. Set **Applies to** to **Descendant User objects**.
 10. Click **Clear all** to deselect everything, then scroll to the
     **Permissions** section and check:
+    - **Create all child objects**
+    - **Delete all child objects**
     - **Reset Password**
 11. Scroll down to the **Properties** section and check:
     - **Read msDS-SupportedEncryptionTypes**
@@ -91,12 +93,11 @@ All nine required permissions are granted in a single ADSI Edit session.
 12. Click **OK**.
 13. Click **Apply**, then **OK**, then **OK** again to close Properties.
 
-> **Note on Create/Delete object permissions:** The Delegation of Control
-> Wizard (not used here) would also add Create/Delete User and Computer
-> object permissions. If you need those, run the wizard separately for User
-> objects with Create/Delete selected, or use the PowerShell script which
-> grants all nine ACEs in one pass. For Kerberos authentication alone, the
-> five permissions granted above via ADSI Edit are sufficient.
+> **Note:** ADSI Edit's Permissions section shows **Create/Delete all child
+> objects** rather than the object-class-specific options the Delegation of
+> Control Wizard offers. This is acceptable here because the OU is dedicated
+> to RDS for Db2 — nothing else should be created in it. The permission is
+> scoped to this OU only, not the domain.
 
 ---
 
@@ -152,17 +153,11 @@ Expected output:
 ```
 AccessControlType  ActiveDirectoryRights       InheritanceType  AppliesTo (ObjectType)                    InheritedFrom (InheritedObjectType)
 -----------------  ---------------------       ---------------  ----------------------                    -----------------------------------
+Allow              CreateChild, DeleteChild     Descendents      (all)                                     user
 Allow              ReadProperty, WriteProperty  Descendents      Validated write to service principal name user
 Allow              ReadProperty, WriteProperty  Descendents      msDS-SupportedEncryptionTypes             user
 Allow              ExtendedRight                Descendents      Reset Password                            user
 ```
-
-> If you also ran the Delegation of Control Wizard for Create/Delete
-> permissions, you will additionally see:
-> ```
-> Allow              CreateChild, DeleteChild     All              user                                      (all)
-> Allow              CreateChild, DeleteChild     All              computer                                  (all)
-> ```
 
 ---
 
