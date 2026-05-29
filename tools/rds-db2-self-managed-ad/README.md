@@ -9,7 +9,7 @@ fits your operations model.
 
 | Method | Doc | When to use |
 |---|---|---|
-| UI (Delegation of Control Wizard + Security tab) | [`README-UI.md`](./README-UI.md) | Ad-hoc setup, easier to walk through with an AD administrator |
+| UI (ADUC Delegation Wizard + ADSI Edit) | [`README-UI.md`](./README-UI.md) | Ad-hoc setup, easier to walk through with an AD administrator |
 | PowerShell (`Grant-ADDomainJoinPrivileges.ps1`) | [`README-PowerShell.md`](./README-PowerShell.md) | Repeatable, idempotent, scriptable across environments |
 
 ## Before you start — replace example values
@@ -30,24 +30,22 @@ with your own before running anything.**
 RDS for Db2 represents the principals it provisions as **user** objects
 under your OU. The service account therefore needs:
 
-| # | Permission                                                 | Scope                                |
-|---|------------------------------------------------------------|--------------------------------------|
-| 1 | Create User objects                                        | This object only (the OU)            |
-| 2 | Delete User objects                                        | This object only (the OU)            |
-| 3 | Create Computer objects                                    | This object only (the OU)            |
-| 4 | Delete Computer objects                                    | This object only (the OU)            |
-| 5 | Reset Password (extended right)                            | Descendant User objects              |
-| 6 | Read  `msDS-SupportedEncryptionTypes`                      | Descendant User objects              |
-| 7 | Write `msDS-SupportedEncryptionTypes`                      | Descendant User objects              |
-| 8 | Read  `servicePrincipalName`                               | Descendant User objects              |
-| 9 | Write `servicePrincipalName`                               | Descendant User objects              |
+| # | Permission                                                 | Tool  | Scope                                |
+|---|------------------------------------------------------------|-------|--------------------------------------|
+| 1 | Create User objects                                        | ADUC  | This object only (the OU)            |
+| 2 | Delete User objects                                        | ADUC  | This object only (the OU)            |
+| 3 | Reset Password (extended right)                            | ADUC  | Descendant User objects              |
+| 4 | Read  `msDS-SupportedEncryptionTypes`                      | ADSI Edit | Descendant User objects          |
+| 5 | Write `msDS-SupportedEncryptionTypes`                      | ADSI Edit | Descendant User objects          |
+| 6 | Read  `servicePrincipalName`                               | ADSI Edit | Descendant User objects          |
+| 7 | Write `servicePrincipalName`                               | ADSI Edit | Descendant User objects          |
 
-> **Why ADSI Edit for SPN?** The standard ADUC Delegation of Control Wizard
-> and Security tab filter `servicePrincipalName` out of the attribute list
-> for User objects. ADSI Edit (`adsiedit.msc`) exposes the full unfiltered
-> schema and is the only UI tool that can grant this permission correctly
-> scoped to User objects. RDS for Db2 checks SPN permissions on User objects
-> — granting it on Computer objects causes the domain join to fail.
+> **Why two tools?** The ADUC Delegation of Control Wizard handles
+> Create/Delete and Reset Password correctly but filters
+> `servicePrincipalName` and `msDS-SupportedEncryptionTypes` out of the
+> attribute list for User objects. ADSI Edit (`adsiedit.msc`) exposes the
+> full unfiltered schema and is used for the four property-specific
+> permissions. The PowerShell script applies all seven in one pass.
 
 ## Prerequisites
 

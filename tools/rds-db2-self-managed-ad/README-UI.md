@@ -1,9 +1,10 @@
 # Method 1 — UI procedure
 
-Use this procedure to delegate the AD permissions Amazon RDS for Db2 needs
-to manage user principals inside your dedicated OU. See [`README.md`](./README.md)
-for the full permission list and prerequisites. For the scripted alternative
-see [`README-PowerShell.md`](./README-PowerShell.md).
+Use this procedure to delegate the minimum Active Directory permissions
+Amazon RDS for Db2 needs to manage its principals inside a dedicated OU.
+See [`README.md`](./README.md) for the full permission list and
+prerequisites. For the scripted alternative see
+[`README-PowerShell.md`](./README-PowerShell.md).
 
 > **Replace example values before following this procedure.**
 > Wherever you see `RDSDb2`, `DC=company,DC=com`, or `rdsdb2svc`,
@@ -12,32 +13,32 @@ see [`README-PowerShell.md`](./README-PowerShell.md).
 
 The UI flow has three parts:
 
-- **Part A** creates the dedicated OU and the AD domain service account using
-  Active Directory Users and Computers (ADUC).
-- **Part B** uses **ADSI Edit** to delegate all required permissions in a
-  single step — create/delete objects, Reset Password,
-  `msDS-SupportedEncryptionTypes` read/write, and `servicePrincipalName`
-  read/write. ADSI Edit is used instead of the Delegation of Control Wizard
-  because the wizard filters `servicePrincipalName` out of the User objects
-  attribute list; ADSI Edit exposes the full unfiltered schema.
-- **Part C** verifies the final ACL.
+- **Part A** — ADUC: create the OU, create the service account, and
+  delegate Create/Delete object and Reset Password permissions using the
+  Delegation of Control Wizard.
+- **Part B** — ADSI Edit: grant the four property-specific attribute
+  permissions (`msDS-SupportedEncryptionTypes` and `servicePrincipalName`
+  read/write) that the Delegation of Control Wizard cannot surface for
+  User objects.
+- **Part C** — Verify the final ACL.
 
 ---
 
-## Part A — Create the OU and service account (ADUC)
+## Part A — ADUC: OU, service account, and Delegation of Control Wizard
 
-### Create the OU
+### Step 1 — Create the OU
 
-1. Open **Active Directory Users and Computers** and select the domain.
+1. Open **Active Directory Users and Computers (ADUC)** and select the domain.
 2. Right-click the domain and choose **New → Organizational Unit**.
 3. Enter a name (e.g. `RDSDb2`).
 4. Keep **Protect container from accidental deletion** selected.
 5. Click **OK**.
 
-### Create the AD domain service account
+### Step 2 — Create the AD domain service account
 
 The service account credentials will be stored in AWS Secrets Manager later.
-Create the account **inside the dedicated OU**, not in the default Users container.
+Create the account **inside the dedicated OU**, not in the default Users
+container.
 
 1. In ADUC, expand the domain and select the OU you just created.
 2. Right-click inside the OU and choose **New → User**.
@@ -53,39 +54,54 @@ Create the account **inside the dedicated OU**, not in the default Users contain
    - **Account is disabled** is **not** selected.
 5. Click **Next**, then **Finish**. The new user appears inside your OU.
 
+### Step 3 — Delegate Control Wizard (Create/Delete objects + Reset Password)
+
+1. Right-click the OU → **Delegate Control**.
+2. On the wizard, click **Next**.
+3. **Users or Groups** → **Add** → enter the service account
+   (e.g. `rdsdb2svc`) → **Check Names** → **OK** → **Next**.
+4. **Tasks to Delegate** → **Create a custom task to delegate** → **Next**.
+5. **Active Directory Object Type**:
+   - Choose **Only the following objects in the folder**
+   - Select **User objects**
+   - Select **Create selected objects in this folder**
+   - Select **Delete selected objects in this folder**
+   - Click **Next**
+6. **Permissions**:
+   - Keep **General** selected
+   - Select **Property-specific**
+   - Select **Creation/deletion of specific child objects**
+   - Select **Reset Password**
+   - Click **Next**
+7. Click **Finish**.
+
 ---
 
-## Part B — Delegate all permissions using ADSI Edit
+## Part B — ADSI Edit: property-specific attribute permissions
 
-All nine required permissions are granted in a single ADSI Edit session.
+The Delegation of Control Wizard filters `servicePrincipalName` and
+`msDS-SupportedEncryptionTypes` out of the attribute list for User objects.
+**ADSI Edit** exposes the full unfiltered schema and is the correct tool
+for granting these four permissions.
 
 > **Prerequisite:** ADSI Edit (`adsiedit.msc`) is included with RSAT and is
 > available on any domain controller or domain-joined Windows host with
 > AD DS Tools installed.
 
-> **Why ADSI Edit and not the Delegation of Control Wizard?**
-> The Delegation of Control Wizard and the ADUC Security tab both filter
-> `servicePrincipalName` out of the attribute list when User objects is
-> selected. ADSI Edit bypasses this filter and shows every attribute defined
-> in the schema, making it possible to grant all permissions in one place.
-
 1. Open **ADSI Edit**: press `Win+R`, type `adsiedit.msc`, press Enter.
 2. Right-click **ADSI Edit** in the left pane → **Connect to**.
-3. In Connection Settings, leave defaults (connects to the domain naming
+3. Leave Connection Settings at defaults (connects to the domain naming
    context) → **OK**.
 4. Expand the tree to find your OU: `DC=company,DC=com` → `OU=RDSDb2`.
 5. Right-click the OU → **Properties**.
-6. Click the **Security** tab → **Advanced** → **Add** → **Select a principal**.
+6. Click the **Security** tab → **Advanced** → **Add** →
+   **Select a principal**.
 7. Enter the service account logon name (e.g. `rdsdb2svc`) →
    **Check Names** → **OK**.
 8. Set **Type** to `Allow`.
 9. Set **Applies to** to **Descendant User objects**.
-10. Click **Clear all** to deselect everything, then scroll to the
-    **Permissions** section and check:
-    - **Create all child objects**
-    - **Delete all child objects**
-    - **Reset Password**
-11. Scroll down to the **Properties** section and check:
+10. Click **Clear all** to deselect everything.
+11. Scroll down to the **Properties** section and check all four:
     - **Read msDS-SupportedEncryptionTypes**
     - **Write msDS-SupportedEncryptionTypes**
     - **Read servicePrincipalName**
@@ -93,39 +109,26 @@ All nine required permissions are granted in a single ADSI Edit session.
 12. Click **OK**.
 13. Click **Apply**, then **OK**, then **OK** again to close Properties.
 
-> **Note:** ADSI Edit's Permissions section shows **Create/Delete all child
-> objects** rather than the object-class-specific options the Delegation of
-> Control Wizard offers. This is acceptable here because the OU is dedicated
-> to RDS for Db2 — nothing else should be created in it. The permission is
-> scoped to this OU only, not the domain.
-
 ---
 
 ## Part C — Verification
 
-### What you see in ADSI Edit (recommended)
-
-ADSI Edit shows the ACEs more accurately than ADUC for attribute-level
-permissions.
-
-1. In ADSI Edit, right-click the OU → **Properties → Security → Advanced**.
-2. Find the entries for your service account.
-3. You will see **two blank entries** in the Access column — these are the
-   attribute-level ACEs (property-specific grants do not display a label in
-   the list view).
-4. **Double-click each blank entry** to confirm the attributes it covers.
-   You should find:
-   - One entry covering `msDS-SupportedEncryptionTypes` (Read and Write)
-   - One entry covering `servicePrincipalName` (Read and Write)
-5. You should also see an entry for **Reset Password**.
-
 ### What you see in ADUC
 
-In ADUC (with **View → Advanced Features** on), open the OU's
-**Properties → Security → Advanced**. The same blank entries appear here
-too — double-click each one to confirm the attribute it covers. ADUC and
-ADSI Edit show the same underlying ACEs; ADSI Edit is simply more reliable
-for reading attribute-level entries.
+In ADUC, enable **View → Advanced Features**, then open the OU's
+**Properties → Security → Advanced**.
+
+You will see entries for your service account:
+
+- **Reset password** — from the Delegation of Control Wizard (Part A)
+- **Create/delete User objects** — from the Delegation of Control Wizard (Part A)
+- **Two blank entries** — these are the attribute-level ACEs from ADSI Edit
+  (Part B). Property-specific grants do not show a label in the list view.
+
+**Double-click each blank entry** to confirm the attribute it covers.
+You should find:
+- One entry: `msDS-SupportedEncryptionTypes` (Read and Write)
+- One entry: `servicePrincipalName` (Read and Write)
 
 ### Verify from PowerShell (recommended)
 
@@ -153,7 +156,7 @@ Expected output:
 ```
 AccessControlType  ActiveDirectoryRights       InheritanceType  AppliesTo (ObjectType)                    InheritedFrom (InheritedObjectType)
 -----------------  ---------------------       ---------------  ----------------------                    -----------------------------------
-Allow              CreateChild, DeleteChild     Descendents      (all)                                     user
+Allow              CreateChild, DeleteChild     All              user                                      (all)
 Allow              ReadProperty, WriteProperty  Descendents      Validated write to service principal name user
 Allow              ReadProperty, WriteProperty  Descendents      msDS-SupportedEncryptionTypes             user
 Allow              ExtendedRight                Descendents      Reset Password                            user
