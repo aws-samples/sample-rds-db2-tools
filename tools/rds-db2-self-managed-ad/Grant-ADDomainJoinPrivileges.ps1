@@ -33,7 +33,7 @@
 
 .PARAMETER TargetOU
     Distinguished name of the OU to delegate on
-    (e.g. OU=RDSDb2,DC=corp,DC=com). Created if missing.
+    (e.g. OU=RDSDb2,DC=company,DC=com). Created if missing.
 
 .PARAMETER BackupPath
     Directory for ACL backup files. Defaults to the current user's Documents.
@@ -41,14 +41,14 @@
 .EXAMPLE
     # Preview without changing anything
     .\Grant-ADDomainJoinPrivileges.ps1 `
-        -ServiceAccount "CORP\rdsdb2svc" `
-        -TargetOU       "OU=RDSDb2,DC=corp,DC=com" -WhatIf
+        -ServiceAccount "COMPANY\rdsdb2svc" `
+        -TargetOU       "OU=RDSDb2,DC=company,DC=com" -WhatIf
 
 .EXAMPLE
     # Apply with verbose output
     .\Grant-ADDomainJoinPrivileges.ps1 `
-        -ServiceAccount "CORP\rdsdb2svc" `
-        -TargetOU       "OU=RDSDb2,DC=corp,DC=com" -Verbose
+        -ServiceAccount "COMPANY\rdsdb2svc" `
+        -TargetOU       "OU=RDSDb2,DC=company,DC=com" -Verbose
 
 .NOTES
     Run on a domain controller or a domain-joined host with RSAT: AD DS Tools
@@ -161,7 +161,7 @@ try {
     }
     $adPath = "AD:\$TargetOU"
     if (-not (Test-Path -LiteralPath $adPath)) {
-        throw "OU path not resolvable: $adPath. Verify the DN (spelling and DC order, e.g. DC=corp,DC=com)."
+        throw "OU path not resolvable: $adPath. Verify the DN (spelling and DC order, e.g. DC=company,DC=com)."
     }
 
     # ---- Ensure service account exists --------------------------------------
