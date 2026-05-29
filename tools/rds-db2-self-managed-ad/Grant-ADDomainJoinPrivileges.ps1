@@ -16,8 +16,8 @@
       3. Reset Password (extended right) on descendant User objects
       4. Read  msDS-SupportedEncryptionTypes on descendant User objects
       5. Write msDS-SupportedEncryptionTypes on descendant User objects
-      6. Read  servicePrincipalName              on descendant User objects
-      7. Write servicePrincipalName              on descendant User objects
+      6. Read  servicePrincipalName on descendant User objects
+      7. Write servicePrincipalName on descendant User objects
 
     The script is idempotent (skips ACEs that already exist), supports
     -WhatIf / -Confirm, validates inputs, and writes a timestamped backup of
@@ -77,8 +77,6 @@ $ErrorActionPreference = 'Stop'
 # ---- Well-known constants ---------------------------------------------------
 # schemaIDGUID for the 'user' object class
 $UserClassGuid = [Guid]'bf967aba-0de6-11d0-a285-00aa003049e2'
-# schemaIDGUID for the 'computer' object class
-$ComputerClassGuid = [Guid]'bf967a86-0de6-11d0-a285-00aa003049e2'
 # rightsGuid for the 'User-Force-Change-Password' extended right (Reset Password)
 $ResetPasswordRightGuid = [Guid]'00299570-246d-11d0-a768-00aa006e0529'
 
@@ -142,7 +140,19 @@ try {
         $ouName     = ($TargetOU -split ',')[0]   -replace '^OU=', ''
         $parentPath = ($TargetOU -split ',', 2)[1]
         if ($PSCmdlet.ShouldProcess($TargetOU, 'Create OU')) {
-            New-ADOrganizationalUnit -Name $ouName -Path $parentPath
+            try {
+                New-ADOrganizationalUnit -Name $ouName -Path $parentPath `
+                    -ProtectedFromAccidentalDeletion $false -ErrorAction Stop
+            } catch [Microsoft.ActiveDirectory.Management.ADException] {
+                if ($_.Exception.Message -match 'unwilling to process') {
+                    throw ("AD refused to create OU '$TargetOU'. Common causes:`n" +
+                           "  1. Parent path '$parentPath' does not exist or is misspelled.`n" +
+                           "  2. A tombstone/deleted object with the same name still exists — wait for AD replication or force-delete it with: Get-ADObject -Filter {name -eq '$ouName'} -IncludeDeletedObjects | Remove-ADObject -Recursive`n" +
+                           "  3. Insufficient rights on the parent container.`n" +
+                           "Original error: $($_.Exception.Message)")
+                }
+                throw
+            }
             Write-Host "Created OU: $TargetOU" -ForegroundColor Yellow
         } else {
             Write-Warning "WhatIf: skipping OU creation. Subsequent steps will fail because the OU does not exist."
@@ -214,14 +224,7 @@ try {
                             -Inheritance 'All'
         },
         @{
-            Description = '3. Create/Delete Computer objects in OU (required to surface SPN in delegation wizard)'
-            Ace = New-AdAce -Identity    $sid `
-                            -Rights      ([System.DirectoryServices.ActiveDirectoryRights]'CreateChild, DeleteChild') `
-                            -ObjectType  $ComputerClassGuid `
-                            -Inheritance 'All'
-        },
-        @{
-            Description = '4. Reset Password on descendant User objects'
+            Description = '3. Reset Password on descendant User objects'
             Ace = New-AdAce -Identity            $sid `
                             -Rights              ([System.DirectoryServices.ActiveDirectoryRights]'ExtendedRight') `
                             -ObjectType          $ResetPasswordRightGuid `
@@ -229,7 +232,7 @@ try {
                             -InheritedObjectType $UserClassGuid
         },
         @{
-            Description = '5-6. Read/Write msDS-SupportedEncryptionTypes on descendant User objects'
+            Description = '4-5. Read/Write msDS-SupportedEncryptionTypes on descendant User objects'
             Ace = New-AdAce -Identity            $sid `
                             -Rights              $rwBoth `
                             -ObjectType          $encGuid `
@@ -237,7 +240,7 @@ try {
                             -InheritedObjectType $UserClassGuid
         },
         @{
-            Description = '7-8. Read/Write servicePrincipalName on descendant User objects'
+            Description = '6-7. Read/Write servicePrincipalName on descendant User objects'
             Ace = New-AdAce -Identity            $sid `
                             -Rights              $rwBoth `
                             -ObjectType          $spnGuid `
