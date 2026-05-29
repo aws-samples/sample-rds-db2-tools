@@ -21,7 +21,7 @@ repeatable run. For the UI walkthrough see [`README-UI.md`](./README-UI.md).
   password securely; sets **Password never expires** and leaves
   **User must change password at next logon** unchecked — the settings
   required for an RDS service account).
-- Grants the seven ACEs listed in [`README.md`](./README.md), including
+- Grants the seven ACEs listed in [`README-UI.md`](./README-UI.md#permissions-granted), including
   `servicePrincipalName` read/write that the wizard doesn't expose.
 - Skips ACEs that already match (idempotent — safe to re-run).
 - Backs up the OU's current ACL to CSV and SDDL before changes.
