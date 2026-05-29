@@ -120,7 +120,6 @@ Expected output:
 AccessControlType  ActiveDirectoryRights       InheritanceType  AppliesTo (ObjectType)                    InheritedFrom (InheritedObjectType)
 -----------------  ---------------------       ---------------  ----------------------                    -----------------------------------
 Allow              CreateChild, DeleteChild     All              user                                      (all)
-Allow              CreateChild, DeleteChild     All              computer                                  (all)
 Allow              ReadProperty, WriteProperty  Descendents      Validated write to service principal name user
 Allow              ReadProperty, WriteProperty  Descendents      msDS-SupportedEncryptionTypes             user
 Allow              ExtendedRight                Descendents      Reset Password                            user
