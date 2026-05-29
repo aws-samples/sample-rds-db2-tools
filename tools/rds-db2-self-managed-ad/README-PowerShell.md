@@ -18,8 +18,9 @@ repeatable run. For the UI walkthrough see [`README-UI.md`](./README-UI.md).
 
 - Creates the target OU if it doesn't exist.
 - Creates the AD domain service account if it doesn't exist (prompts for
-  password securely; sets **Password never expires** and **Cannot change
-  password** — the settings required for an RDS service account).
+  password securely; sets **Password never expires** and leaves
+  **User must change password at next logon** unchecked — the settings
+  required for an RDS service account).
 - Grants the seven ACEs listed in [`README.md`](./README.md), including
   `servicePrincipalName` read/write that the wizard doesn't expose.
 - Skips ACEs that already match (idempotent — safe to re-run).

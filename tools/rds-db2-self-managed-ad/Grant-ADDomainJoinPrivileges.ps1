@@ -172,7 +172,6 @@ try {
                               -AccountPassword      $password `
                               -Enabled              $true `
                               -PasswordNeverExpires $true `
-                              -CannotChangePassword $true `
                               -Path                 $TargetOU `
                               -PassThru
         Write-Host "Created service account: $ServiceAccount" -ForegroundColor Yellow
