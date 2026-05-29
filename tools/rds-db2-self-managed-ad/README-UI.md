@@ -2,14 +2,46 @@
 
 Use this procedure to delegate the minimum Active Directory permissions
 Amazon RDS for Db2 needs to manage its principals inside a dedicated OU.
-See [`README.md`](./README.md) for the full permission list and
-prerequisites. For the scripted alternative see
-[`README-PowerShell.md`](./README-PowerShell.md).
+For the scripted alternative see [`README-PowerShell.md`](./README-PowerShell.md).
 
 > **Replace example values before following this procedure.**
-> Wherever you see `RDSDb2`, `DC=company,DC=com`, or `rdsdb2svc`,
-> substitute the OU name, domain, and service account logon name you chose.
-> See the substitution table in [`README.md`](./README.md).
+
+| Example value | What to replace it with |
+|---|---|
+| `RDSDb2` | The name of the OU you create for RDS for Db2 |
+| `DC=company,DC=com` | The DC components of your AD domain (e.g. `DC=corp,DC=example,DC=com` for `corp.example.com`) |
+| `OU=RDSDb2,DC=company,DC=com` | The full distinguished name of your OU |
+| `CORP\rdsdb2svc` | Your AD domain and service account name in `DOMAIN\username` format |
+| `rdsdb2svc` | The sAMAccountName (logon name) of your service account |
+
+## Prerequisites
+
+- Run on a domain controller, or a domain-joined host with **RSAT: AD DS Tools**.
+- Run as a user with permission to modify the OU's ACL (typically Domain Admin).
+
+## Permissions granted
+
+RDS for Db2 represents the principals it provisions as **user** objects
+under your OU. The service account therefore needs:
+
+| # | Permission | Tool | Scope |
+|---|---|---|---|
+| 1 | Create User objects | ADUC | This object only (the OU) |
+| 2 | Delete User objects | ADUC | This object only (the OU) |
+| 3 | Reset Password (extended right) | ADUC | Descendant User objects |
+| 4 | Read `msDS-SupportedEncryptionTypes` | ADSI Edit | Descendant User objects |
+| 5 | Write `msDS-SupportedEncryptionTypes` | ADSI Edit | Descendant User objects |
+| 6 | Read `servicePrincipalName` | ADSI Edit | Descendant User objects |
+| 7 | Write `servicePrincipalName` | ADSI Edit | Descendant User objects |
+
+> **Why two tools?** The ADUC Delegation of Control Wizard handles
+> Create/Delete and Reset Password correctly but filters
+> `servicePrincipalName` and `msDS-SupportedEncryptionTypes` out of the
+> attribute list for User objects. ADSI Edit (`adsiedit.msc`) exposes the
+> full unfiltered schema and is used for the four property-specific
+> permissions. The PowerShell script applies all seven in one pass.
+
+---
 
 The UI flow has three parts:
 

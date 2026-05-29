@@ -2,14 +2,17 @@
 
 Use [`Grant-ADDomainJoinPrivileges.ps1`](./Grant-ADDomainJoinPrivileges.ps1)
 to delegate the AD permissions Amazon RDS for Db2 needs in a single,
-repeatable run. See [`README.md`](./README.md) for the full permission list
-and prerequisites. For the UI walkthrough see [`README-UI.md`](./README-UI.md).
+repeatable run. For the UI walkthrough see [`README-UI.md`](./README-UI.md).
 
 > **Replace example values before running any command.**
-> Wherever you see `CORP\rdsdb2svc`, `OU=RDSDb2,DC=corp,DC=com`,
-> `OU=RDSDb2,DC=company,DC=com`, or `<your-samaccountname>`, substitute
-> your own domain, OU name, and service account logon name.
-> See the substitution table in [`README.md`](./README.md).
+
+| Example value | What to replace it with |
+|---|---|
+| `RDSDb2` | The name of the OU you create for RDS for Db2 |
+| `DC=company,DC=com` / `DC=corp,DC=com` | The DC components of your AD domain |
+| `OU=RDSDb2,DC=company,DC=com` | The full distinguished name of your OU |
+| `CORP\rdsdb2svc` | Your AD domain and service account in `DOMAIN\username` format |
+| `rdsdb2svc` | The sAMAccountName (logon name) of your service account |
 
 ## What the script does
 
