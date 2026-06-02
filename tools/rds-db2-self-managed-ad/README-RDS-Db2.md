@@ -38,8 +38,10 @@ aws rds modify-db-instance \
     --region         "<your-region>" \
     --profile        "<your-profile>" \
     --db-instance-identifier "<your-db-instance-identifier>" \
-    --domain-fqdn    "company.com" \
-    --domain-ou      "OU=RDSDb2,DC=company,DC=com" \
+    --domain-fqdn    "<your-domain-fqdn>" \
+    # ^^^ e.g. company.com
+    --domain-ou      "<your-domain-ou>" \
+    # ^^^ e.g. OU=RDSDb2,DC=company,DC=com
     --domain-auth-secret-arn "<your-secret-arn>" \
     --domain-dns-ips "<dc-ip-1>" "<dc-ip-2>"
 ```
@@ -163,8 +165,10 @@ To add self-managed AD to an instance that was created without it:
 aws rds modify-db-instance \
     --region                 "<your-region>" \
     --db-instance-identifier "<your-db-instance-identifier>" \
-    --domain-fqdn            "company.com" \
-    --domain-ou              "OU=RDSDb2,DC=company,DC=com" \
+    --domain-fqdn            "<your-domain-fqdn>" \
+    # ^^^ e.g. company.com
+    --domain-ou              "<your-domain-ou>" \
+    # ^^^ e.g. OU=RDSDb2,DC=company,DC=com
     --domain-auth-secret-arn "<your-secret-arn>" \
     --domain-dns-ips         "<dc-ip-1>" "<dc-ip-2>" \
     --apply-immediately
