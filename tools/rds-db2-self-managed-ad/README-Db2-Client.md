@@ -136,7 +136,7 @@ database names explicitly:
 DB_NAMES=DB2DB,MYDB REGION=<region> source db2client-configure.sh
 ```
 
-For custom or internal RDS endpoints (non-standard domain suffix), add
+For custom RDS endpoints (non-standard domain suffix), add
 the `E_URL` variable so the script uses the correct API endpoint and
 extracts the right root CA from the server's TLS chain:
 
@@ -206,7 +206,7 @@ db2_test_connection RDSAKS
 |---|---|---|
 | `realm list` shows no domain | Join did not complete | Re-run `source joindomain.sh`; check DC connectivity on port 88 and 389 |
 | `klist` empty | No TGT | `kinit user@REALM.COM` |
-| GSKit error 414 on SSL connect | Wrong or untrusted cert | For internal endpoints set `E_URL`; the script extracts the root CA automatically |
+| GSKit error 414 on SSL connect | Wrong or untrusted cert | For custom endpoints set `E_URL`; the script extracts the root CA automatically |
 | `DB_NAMES` prompt appears | AD user lacks CONNECT on RDSADMIN | Set `DB_NAMES=DB2DB,...` before running the script |
 | Kerberos connect succeeds but query fails | AD user not granted DB privileges | Connect as `admin` (local auth) and `GRANT CONNECT ON DATABASE TO USER domain\user` |
 
