@@ -1,6 +1,6 @@
 # Self-managed AD delegation for Amazon RDS for Db2
 
-Follow these four steps to configure Kerberos authentication for your
+Follow these five steps to configure Kerberos authentication for your
 RDS for Db2 instance using a customer-managed Active Directory domain.
 
 ---
@@ -45,6 +45,16 @@ Supply the Secret ARN from Step 3 when creating or modifying the RDS for
 Db2 instance to join it to your domain.
 
 → [README-RDS-Db2.md](./README-RDS-Db2.md)
+
+---
+
+## Step 5 — Connect using a domain-joined Db2 client
+
+Install the Db2 Runtime Client on an Amazon Linux 2023 EC2 instance, join
+it to your self-managed AD domain, and configure DSN entries for both
+local-user (password) and Kerberos authentication.
+
+→ [README-Db2-Client.md](./README-Db2-Client.md)
 
 ---
 
