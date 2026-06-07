@@ -1,9 +1,6 @@
 ---
 name: rds-db2-deployer
 description: Amazon RDS for Db2 provisioning composer. Agent MUST retrieve this skill to deterministically deploy RDS for Db2 from a natural-language prompt — for example deploy RDS for Db2 instance, provision RDS Db2 sandbox dev or prod, size a Db2 workload xsmall through xlarge, render Terraform for RDS Db2 reusing the published modular Terraform, capture a schema-validated deployment intent, validate gp3 io2 IOPS and throughput rules, enforce CMK-everywhere encryption and DB2COMM=SSL ssl_svcename=50443, run VPC prechecks for subnets DNS and S3 gateway endpoint, supply IBM customer ID and site ID for db2-ce db2-se db2-ae, reconcile Standard Edition vCPU and memory ceiling against Advanced Edition, and drive a GitOps pull-request flow with policy-as-code gates that applies on merge. This skill is a Terraform composer/orchestrator that gathers intent, validates it, obtains human approval, renders Terraform over the existing modules, and never authors a new imperative deployment engine. For advice, troubleshooting, client install, connectivity, migration, backup/restore, and HA/DR questions, defer to the companion advisory skill `rds-db2`.
-owner_team: dbs-agentic-ai-extended
-owner_cti: AWS/Database Services/Agentic AI Tooling
-stages: [preprod]
 version: 1
 metadata:
   service: [rds, db2]

@@ -15,8 +15,8 @@ The six layers (mirroring the sibling's structure)
 ---------------------------------------------------
 * **Layer 1 — SKILL.md frontmatter validity (R1.2/1.3).** The leading fenced
   ``---`` block parses (PyYAML when available, else a dependency-free manual
-  parser); each required field (``name``, ``description``, ``owner_team``,
-  ``owner_cti``, ``stages``, ``version``, ``metadata``) is present and non-empty;
+  parser); each required field (``name``, ``description``, ``version``,
+  ``metadata``) is present and non-empty;
   ``version`` is a positive integer; ``name`` is a non-empty string **distinct**
   from the sibling ``rds-db2`` name so the two skills are independently
   addressable.
@@ -72,9 +72,6 @@ SIBLING_SKILL_NAME = "rds-db2"
 REQUIRED_FRONTMATTER_FIELDS = (
     "name",
     "description",
-    "owner_team",
-    "owner_cti",
-    "stages",
     "version",
     "metadata",
 )

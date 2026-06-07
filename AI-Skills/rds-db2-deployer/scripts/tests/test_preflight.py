@@ -87,16 +87,16 @@ def _layer(report: preflight.PreflightReport, n: int) -> preflight.LayerResult:
 
 def test_layer1_flags_missing_frontmatter_field(package_copy: Path):
     text = (package_copy / "SKILL.md").read_text(encoding="utf-8")
-    # Drop the owner_team line from the frontmatter.
+    # Drop the version line from the frontmatter (a required field).
     broken = "\n".join(
-        line for line in text.splitlines() if not line.startswith("owner_team:")
+        line for line in text.splitlines() if not line.startswith("version:")
     )
     (package_copy / "SKILL.md").write_text(broken, encoding="utf-8")
     report = preflight.run_preflight(
         package_copy, venv_python=sys.executable, test_result=(True, "x")
     )
     assert not _layer(report, 1).passed
-    assert any("owner_team" in f.location for f in _layer(report, 1).findings)
+    assert any("version" in f.location for f in _layer(report, 1).findings)
 
 
 def test_layer1_flags_name_equal_to_sibling(package_copy: Path):
