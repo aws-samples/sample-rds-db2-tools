@@ -8,13 +8,25 @@ terraform {
 provider "aws" {
   region = var.aws_region
   default_tags {
-    tags = {
+    tags = local.default_resource_tags
+  }
+}
+
+# Mandatory tag set (R14) applied to every created resource via default_tags.
+# Customer-supplied extra_tags are merged FIRST so the mandatory keys, merged
+# last, always win — an extra tag can never override a mandatory key (R14.4).
+locals {
+  default_resource_tags = merge(
+    var.extra_tags,
+    {
       Project     = var.tag
       ManagedBy   = "Terraform"
       Environment = var.environment
       Owner       = var.owner
-    }
-  }
+    },
+    var.created_by != "" ? { created_by = var.created_by } : {},
+    var.generation_model != "" ? { generation_model = var.generation_model } : {},
+  )
 }
 
 data "aws_partition" "current" {}
@@ -31,9 +43,15 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "backup" {
   count  = var.create_s3_backup_bucket ? 1 : 0
   bucket = aws_s3_bucket.backup[0].id
   rule {
+    # Use SSE-KMS with a customer-managed CMK when one is supplied (R6.10/R6.12);
+    # fall back to SSE-S3 (AES256) only for backward-compatible direct callers that
+    # omit a CMK. The composer always supplies s3_backup_bucket_kms_key_arn.
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = var.s3_backup_bucket_kms_key_arn != "" ? "aws:kms" : "AES256"
+      kms_master_key_id = var.s3_backup_bucket_kms_key_arn != "" ? var.s3_backup_bucket_kms_key_arn : null
     }
+    # Reduce KMS request cost/throttling for SSE-KMS buckets; no-op for SSE-S3.
+    bucket_key_enabled = var.s3_backup_bucket_kms_key_arn != "" ? true : null
   }
 }
 
@@ -56,9 +74,15 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "audit" {
   count  = var.create_audit_bucket ? 1 : 0
   bucket = aws_s3_bucket.audit[0].id
   rule {
+    # Use SSE-KMS with a customer-managed CMK when one is supplied (R6.10/R6.12);
+    # fall back to SSE-S3 (AES256) only for backward-compatible direct callers that
+    # omit a CMK. The composer always supplies audit_bucket_kms_key_arn.
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = var.audit_bucket_kms_key_arn != "" ? "aws:kms" : "AES256"
+      kms_master_key_id = var.audit_bucket_kms_key_arn != "" ? var.audit_bucket_kms_key_arn : null
     }
+    # Reduce KMS request cost/throttling for SSE-KMS buckets; no-op for SSE-S3.
+    bucket_key_enabled = var.audit_bucket_kms_key_arn != "" ? true : null
   }
 }
 
@@ -203,6 +227,25 @@ resource "aws_iam_role_policy_attachment" "directory_service" {
   count      = var.create_directory_role && !var.directory_role_exists ? 1 : 0
   role       = aws_iam_role.directory_service[0].name
   policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AmazonRDSDirectoryServiceAccess"
+}
+
+# Self-managed AD additionally requires RDS to read the join credentials from
+# Secrets Manager (the secret holding SELF_MANAGED_ACTIVE_DIRECTORY_USERNAME /
+# SELF_MANAGED_ACTIVE_DIRECTORY_PASSWORD). Scoped to the supplied secret ARN.
+resource "aws_iam_role_policy" "directory_service_self_managed" {
+  count = var.create_directory_role && !var.directory_role_exists && var.self_managed_ad_secret_arn != "" ? 1 : 0
+  name  = "SelfManagedADSecretAccess"
+  role  = aws_iam_role.directory_service[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadSelfManagedADSecret"
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+      Resource = var.self_managed_ad_secret_arn
+    }]
+  })
 }
 
 locals {

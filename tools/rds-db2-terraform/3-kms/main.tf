@@ -8,13 +8,25 @@ terraform {
 provider "aws" {
   region = var.aws_region
   default_tags {
-    tags = {
+    tags = local.default_resource_tags
+  }
+}
+
+# Mandatory tag set (R14) applied to every created resource via default_tags.
+# Customer-supplied extra_tags are merged FIRST so the mandatory keys, merged
+# last, always win — an extra tag can never override a mandatory key (R14.4).
+locals {
+  default_resource_tags = merge(
+    var.extra_tags,
+    {
       Project     = var.tag
       ManagedBy   = "Terraform"
       Environment = var.environment
       Owner       = var.owner
-    }
-  }
+    },
+    var.created_by != "" ? { created_by = var.created_by } : {},
+    var.generation_model != "" ? { generation_model = var.generation_model } : {},
+  )
 }
 
 data "aws_caller_identity" "current" {}

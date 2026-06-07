@@ -8,13 +8,25 @@ terraform {
 provider "aws" {
   region = var.aws_region
   default_tags {
-    tags = {
+    tags = local.default_resource_tags
+  }
+}
+
+# Mandatory tag set (R14) applied to every created resource via default_tags.
+# Customer-supplied extra_tags are merged FIRST so the mandatory keys, merged
+# last, always win — an extra tag can never override a mandatory key (R14.4).
+locals {
+  default_resource_tags = merge(
+    var.extra_tags,
+    {
       Project     = var.tag
       ManagedBy   = "Terraform"
       Environment = var.environment
       Owner       = var.owner
-    }
-  }
+    },
+    var.created_by != "" ? { created_by = var.created_by } : {},
+    var.generation_model != "" ? { generation_model = var.generation_model } : {},
+  )
 }
 
 locals {
@@ -42,6 +54,26 @@ resource "aws_db_parameter_group" "this" {
     name         = "rds.ibm_site_id"
     value        = var.ibm_site_id
     apply_method = "immediate"
+  }
+
+  # ── Security invariants (R6.2): SSL-only Db2 communication ────────────────
+  # DB2COMM=SSL (NOT "tcpip,ssl") keeps the non-SSL TCP listener dormant, and
+  # ssl_svcename pins the SSL service to port 50443. These are rendered for
+  # EVERY produced deployment regardless of prompt wording (R6.2/R6.7): they are
+  # constants, not customer inputs, so they are hardcoded here (mirroring the
+  # structure of the IBM-ID parameters above) rather than exposed as variables.
+  # The Terraform_Composer (render_terraform.py) relies on this module always
+  # carrying them; see DB2_SECURITY_PARAMETERS there.
+  parameter {
+    name         = "DB2COMM"
+    value        = "SSL"
+    apply_method = "pending-reboot"
+  }
+
+  parameter {
+    name         = "ssl_svcename"
+    value        = "50443"
+    apply_method = "pending-reboot"
   }
 
   tags = { Name = local.pg_name }

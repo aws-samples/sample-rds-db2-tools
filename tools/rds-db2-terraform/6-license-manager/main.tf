@@ -15,12 +15,17 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  common_tags = {
-    Project     = var.tag
-    ManagedBy   = "Terraform"
-    Environment = var.environment
-    Owner       = var.owner
-  }
+  common_tags = merge(
+    var.extra_tags,
+    {
+      Project     = var.tag
+      ManagedBy   = "Terraform"
+      Environment = var.environment
+      Owner       = var.owner
+    },
+    var.created_by != "" ? { created_by = var.created_by } : {},
+    var.generation_model != "" ? { generation_model = var.generation_model } : {},
+  )
 }
 
 # ── Self-managed IBM Db2 license in AWS License Manager ──────────────────────

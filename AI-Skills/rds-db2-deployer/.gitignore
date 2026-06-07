@@ -1,0 +1,16 @@
+# Local dev environment / caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+*.egg-info/
+
+# Runtime per-deployment outputs (keep the dir, ignore contents)
+artifacts/*/
+
+# Private fact-gathering source — contains real IBM Passport Advantage IDs.
+# Never published: kept in the local dev tree only, excluded from any sync to
+# the public GitHub copy. The skill does not import or execute it; its purpose
+# is fulfilled by the Terraform + the Python ports.
+0cr-ins.sh

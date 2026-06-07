@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rds-db2-provision-skill"
+version = "0.1.0"
+description = "Terraform composer/orchestrator scripts for the rds-db2-provision-skill (resolvers, validator, VPC precheck, composer, policy gate)."
+readme = "README.md"
+requires-python = ">=3.11"
+
+# Runtime dependencies for the skill's scripts. Pinned to exact, recent stable
+# releases for reproducibility (truth-grounding requirement: deterministic,
+# reproducible tooling).
+dependencies = [
+    "jsonschema==4.23.0",
+    "boto3==1.35.76",
+]
+
+[project.optional-dependencies]
+# Local dev + CI: property-based tests (Hypothesis) run by pytest.
+dev = [
+    "hypothesis==6.122.3",
+    "pytest==8.3.4",
+]
+
+[tool.setuptools]
+packages = ["scripts"]
+
+[tool.pytest.ini_options]
+# Tests live alongside the scripts package.
+testpaths = ["scripts/tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra"

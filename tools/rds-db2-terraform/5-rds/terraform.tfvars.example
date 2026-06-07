@@ -29,6 +29,7 @@ storage_encrypted      = true
 kms_key_arn            = ""
 parameter_group_name   = "rds-db2-pg-db2-11-5-myproject"
 backup_retention_period = 1
+deletion_protection    = false
 monitoring_role_arn    = "arn:aws:iam::123456789012:role/rds-db2-monitoring-role-MYPROJECT"
 directory_id           = ""
 directory_role_name    = ""
@@ -37,3 +38,17 @@ s3_integration_role_arn = ""
 enable_audit           = false
 audit_role_arn         = ""
 audit_bucket_name      = ""
+
+# ── Cross-region mounted standby replica (optional, DR) ───────────────────────
+# Defaults keep this disabled. When enabling, the caller must also pass the
+# aws.replica provider alias (configured for the target region) into the module,
+# and these prerequisites must be met:
+#   - backup_retention_period > 0 (automated backups on the source)
+#   - standby_parameter_group_name: a parameter group in the TARGET region
+#   - standby_kms_key_arn: an MRK CMK in the TARGET region
+create_standby_replica       = false
+standby_replica_region       = ""
+standby_replica_identifier   = ""
+standby_instance_class       = ""
+standby_parameter_group_name = ""
+standby_kms_key_arn          = ""

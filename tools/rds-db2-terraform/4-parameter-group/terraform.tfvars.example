@@ -6,5 +6,9 @@ owner                = "db-team"
 engine_edition       = "se"
 engine_major_version = "11.5"
 parameter_group_name = ""
+# IBM Passport Advantage IDs — supply YOUR real customer/site IDs here. The
+# placeholders below are well-formed (so a deploy succeeds) but NOT valid; RDS
+# trusts the values and does not validate them. Update the parameter group with
+# your real IDs when you have them. (All-zero values are rejected by RDS.)
 ibm_customer_id      = "1234567"
 ibm_site_id          = "1234567890"

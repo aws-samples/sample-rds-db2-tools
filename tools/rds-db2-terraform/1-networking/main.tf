@@ -44,12 +44,17 @@ data "aws_route_table" "each" {
 }
 
 locals {
-  common_tags = {
-    Project     = var.tag
-    ManagedBy   = "Terraform"
-    Environment = var.environment
-    Owner       = var.owner
-  }
+  common_tags = merge(
+    var.extra_tags,
+    {
+      Project     = var.tag
+      ManagedBy   = "Terraform"
+      Environment = var.environment
+      Owner       = var.owner
+    },
+    var.created_by != "" ? { created_by = var.created_by } : {},
+    var.generation_model != "" ? { generation_model = var.generation_model } : {},
+  )
   public_subnet_ids = [
     for sid, rt in data.aws_route_table.each :
     sid if anytrue([
