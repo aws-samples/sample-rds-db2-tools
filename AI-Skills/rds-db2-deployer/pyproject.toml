@@ -21,7 +21,7 @@ dependencies = [
 # Local dev + CI: property-based tests (Hypothesis) run by pytest.
 dev = [
     "hypothesis==6.122.3",
-    "pytest==8.3.4",
+    "pytest==9.0.3",
 ]
 
 [tool.setuptools]
