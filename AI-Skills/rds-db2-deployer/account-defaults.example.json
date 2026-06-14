@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "_about": "Copy this file to your gitops repo as 'account-defaults.json' and fill it ONCE from the AWS console (view access is enough). The agent reuses these for every RDS for Db2 deployment in this account; anything you say in a prompt overrides a default. A per-deployment intent REUSES existing networking/KMS/monitoring, so those must already exist - if they don't, the gitops account bootstraps them ONCE via the 1-networking / 3-kms / 2-iam modules and you record the resulting names/ARNs here. No secrets go in this file.",
+  "region": "us-east-1",
+  "db_subnet_group_name": "REPLACE-with-your-db-subnet-group",
+  "vpc_security_group_ids": ["sg-REPLACE"],
+  "kms_key_id": "arn:aws:kms:us-east-1:111122223333:key/mrk-REPLACE",
+  "master_user_secret_kms_key_id": "arn:aws:kms:us-east-1:111122223333:key/mrk-REPLACE",
+  "monitoring_role_arn": "arn:aws:iam::111122223333:role/REPLACE-monitoring-role",
+  "ingress_cidrs": ["10.0.0.0/16"],
+  "ibm_customer_id": "1234567",
+  "ibm_site_id": "1234567890",
+  "tags": { "Project": "REPLACE", "Owner": "REPLACE" },
+  "gitops_aws_account_id": "111122223333"
+}

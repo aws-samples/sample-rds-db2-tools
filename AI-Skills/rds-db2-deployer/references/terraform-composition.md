@@ -96,6 +96,24 @@ These three capabilities — self-managed AD, cross-region standby, read replica
 must be added to the modules **before** the corresponding optional capability is
 rendered, consistent with the unmapped-variable halt in R10.4 (R13.16).
 
+### Reuse-only root today; create = one-time bootstrap
+
+The rendered root emits each enabled module as a bare `module` block plus its
+`terraform.tfvars`; it does **not** wire one module's outputs into another (e.g.
+`3-kms`'s `kms_key_arn` into `5-rds`). So a per-deployment intent **reuses**
+existing networking, KMS, and monitoring — their identifiers
+(`db_subnet_group_name`, `vpc_security_group_ids`, `kms_key_id`,
+`master_user_secret_kms_key_id`, `monitoring_role_arn`) are required and supplied
+(typically from `account-defaults.json`). The intent schema enforces this, so an
+intent omitting them halts at validation rather than rendering an unwired root.
+
+When those resources don't exist yet, the gitops account applies the
+foundational modules **once** — `1-networking` (subnet group + SG), `3-kms` (MRK
+CMK(s)), `2-iam` (monitoring role) — as a bootstrap, then records the outputs in
+`account-defaults.json`. The `REUSE_RULES` create-path dispositions remain in the
+composer as latent capability for a future one-shot mode that also wires the
+create-module outputs into the instance (not enabled today).
+
 ## Optional capabilities (R13)
 
 Verbose prompts can request Multi-AZ (R13.1), cross-region mounted standby

@@ -28,6 +28,33 @@ the prompt or any tier default, the collector lists every missing field by name
 in one consolidated request and refuses to fabricate values or emit an intent
 until they are supplied (R2.6).
 
+### Present the consolidated request as a short numbered menu
+
+Per the SKILL.md interaction style, surface that consolidated request as a
+**low-typing menu**, not an interrogation. After loading `account-defaults.json`
+and applying tier/sizing defaults, propose the complete intent and then ask only
+for what is genuinely missing — each as a short numbered choice with a "type
+another" escape. Selecting an option is identical to typing it (same value, same
+`user_provided` provenance). Concrete per-field option sets:
+
+- **Region?** `us-east-1` · `us-west-2` · `eu-west-1` · _type another_
+- **Tier?** ▶ `dev` · `sandbox` · `prod` (prod adds Multi-AZ, r-family,
+  deletion protection, and a mandatory explicit approval)
+- **Size?** ▶ `xsmall` · `small` · `medium` · `large` · `xlarge`
+- **Edition?** ▶ `db2-se` · `db2-ae` · `db2-ce`
+- **Master credentials?** ▶ Managed in Secrets Manager (recommended) · Supply a
+  password manually
+- **Networking / KMS / monitoring?** ▶ Reuse the values in `account-defaults.json`
+  · Reuse different existing ones (paste names/ARNs) · (none yet → bootstrap once,
+  see `account-defaults.md`)
+- **Ingress CIDR for SSL 50443?** the account-default (e.g. `10.0.0.0/16`) ·
+  _type another_
+- **IBM customer / site ID?** use the values in `account-defaults.json` · _type
+  the real Passport Advantage IDs_ — **never** offer an option that invents them.
+
+Always include a single recommended fast path (e.g. "▶ Proceed with these") that
+reaches the next gate (validate → verify → render) in one selection.
+
 ## Four orthogonal axes
 
 | Axis | Values | Determines | Independent of |

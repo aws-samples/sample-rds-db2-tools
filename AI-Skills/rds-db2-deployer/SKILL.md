@@ -64,6 +64,7 @@ compose → gitops** — and each reference owns one stage or axis.
 
 | User intent / signal | Pipeline stage | Load |
 |---|---|---|
+| account defaults / account-defaults.json / "set the basics once" / reuse region+VPC+subnet+SG+KMS+IBM IDs across deployments / minimum required params | account defaults (load first) | [account-defaults.md](references/account-defaults.md) |
 | deploy / provision / "Deploy RDS for Db2" / tier (sandbox, dev, prod) / Environment tag / workload size (xsmall..xlarge) / instance class / what defaults apply | intent capture + tiers + sizing | [intent-and-tiers.md](references/intent-and-tiers.md) |
 | schema / required fields / deployment-intent.json / JSON Schema dialect / conditional dependency / provenance | intent schema | [intent-schema.md](references/intent-schema.md) |
 | storage / allocated_storage / gp3 / io2 / IOPS / throughput / IOPS-to-storage ratio / 400 GiB gp3 gate | storage rules (validate) | [storage-iops-throughput.md](references/storage-iops-throughput.md) |
@@ -81,6 +82,12 @@ pipeline scripts live under `scripts/` (`resolve_intent.py`, `validate_intent.py
 
 ### Pipeline at a glance
 
+0. **account defaults (load first)** — when the customer's repo carries an
+   `account-defaults.json`, load it (`scripts/account_defaults.py`) and merge the
+   account-level basics (region, subnet group, security group, KMS MRK,
+   monitoring role, ingress, IBM identifiers, tags) into the intent before
+   gathering. Prompt values override defaults; the agent only asks for what is
+   still missing. See [account-defaults.md](references/account-defaults.md).
 1. **intent** — `Intent_Collector` + `Tier_Resolver` + `Sizing_Resolver` populate
    `deployment-intent.json`, tagging every field's provenance (`user_provided` /
    `assumed`). See [intent-and-tiers.md](references/intent-and-tiers.md).
@@ -95,6 +102,49 @@ pipeline scripts live under `scripts/` (`resolve_intent.py`, `validate_intent.py
    existing modules `0-backend-setup` … `6-license-manager`.
 6. **gitops** — the `GitOps_Orchestrator` opens a PR, posts a masked `terraform plan`,
    runs the `Policy_Gate`, and arranges `terraform apply` on merge.
+
+## Interaction style — propose, then offer a short numbered menu
+
+This skill is designed for a **low-typing** experience: the agent does the work
+of proposing a complete, defaulted plan and the human confirms or adjusts with a
+single short reply. Follow this on every turn that needs a human decision.
+
+1. **Propose, don't interrogate.** Before asking anything, resolve as much as
+   possible: load `account-defaults.json` (pipeline step 0), apply tier and
+   sizing defaults, and present a **complete proposed intent** with each field's
+   provenance (`user_provided` / `assumed`). Ask only for fields that are truly
+   missing and cannot be assumed.
+2. **End the turn with a short numbered menu** — 2 to 5 options, each one line.
+   Mark the recommended option (e.g. `▶` or "recommended"). The user replies with
+   just the **number or a short word**; treat that reply as selecting that option.
+   Keep a fast path that reaches the next gate in one choice.
+3. **Offer a "type another" escape** for free-form fields (region, CIDR, IBM IDs)
+   alongside the common presets, so the menu never traps the user.
+4. **Selecting == typing.** A chosen option produces exactly the same resolved
+   value and provenance as if the user had typed it (`user_provided` for what
+   they chose, `assumed` for defaults left in place).
+5. **Never hide fabrication behind an option.** Do not offer an option that
+   invents `ibm_customer_id` / `ibm_site_id`, a master password, or any secret.
+   A menu may offer the documented learning **placeholders** only when explicitly
+   labelled as placeholders, never as if they were real values.
+6. **Decision gates are menus too.** The verify/approval echo, a VPC-precheck
+   warning acknowledgement, a forced SE→AE edition conversion acknowledgement,
+   and the GitOps merge are all presented as numbered choices. `prod` always
+   requires an explicit, typed/clicked **Approve** — never a default-yes.
+
+Honesty about rendering: these are quick-reply prompts in chat, not guaranteed
+UI buttons. The host may render them as clickable suggestions or as plain text;
+either way the contract is the same — a complete proposal plus a short menu the
+user answers with one number or word. Do not claim a button will appear.
+
+### Example end-of-turn menu (first run, dev sandbox)
+
+> Proposed: **dev** tier, **xsmall**, db2-se 12.1, db.t3.small, 40 GiB gp3,
+> single-AZ, SSL-only on 50443, MRK-encrypted. Loaded from account-defaults:
+> region, networking, KMS, IBM IDs, tags. How do you want to proceed?
+> 1. ▶ Proceed — validate, verify, and render this
+> 2. Change tier (sandbox / prod) or size (xsmall…xlarge)
+> 3. Override a field (region, instance class, ingress CIDR, …)
 
 ## Mandatory resource tagging (always applied on resource creation)
 

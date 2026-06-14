@@ -742,3 +742,85 @@ def evaluate_policies(
 # A purely-documentary alias for the duck-typed RenderResult input (the gate
 # never imports the composer, to stay decoupled and independently testable).
 RenderResultLike = Any
+
+
+# ---------------------------------------------------------------------------
+# CLI — run the gate over a rendered deployment directory (for CI)
+# ---------------------------------------------------------------------------
+
+
+def _read_rendered_dir(path: "Path") -> dict[str, str]:
+    """Read a rendered deployment dir into a ``{relative path: content}`` map.
+
+    Collects the root ``*.tf`` files and every ``<module>/terraform.tfvars`` so
+    :func:`evaluate_policies` sees the same surface the composer produced.
+    """
+    files: dict[str, str] = {}
+    for p in sorted(path.rglob("*")):
+        if p.is_file() and (p.suffix == ".tf" or p.name == "terraform.tfvars"):
+            files[str(p.relative_to(path))] = p.read_text()
+    return files
+
+
+def _main(argv: "list[str] | None" = None) -> int:
+    """CLI: run the five policy gates over a rendered deployment directory.
+
+    Usage:
+        python -m scripts.policy_gate <rendered-dir> [--plan plan.txt]
+
+    Reads the rendered ``*.tf`` + ``*/terraform.tfvars`` (and, if present, the
+    deployment-intent.json in the dir to honor a public-access acknowledgement).
+    Prints a discrete PASS/FAIL per check. Exit 0 only when ALL gates pass, so a
+    CI job can gate merge-to-apply on this command (R12.3/R12.4).
+    """
+    import argparse
+    import json
+    import sys
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Run the rds-db2-deployer policy gate over a rendered dir."
+    )
+    parser.add_argument("rendered_dir", help="path to the rendered deployment directory")
+    parser.add_argument(
+        "--plan", default=None, help="optional path to `terraform plan` stdout to also check"
+    )
+    args = parser.parse_args(argv)
+
+    rendered = Path(args.rendered_dir)
+    if not rendered.is_dir():
+        print(f"error: rendered dir not found: {rendered}", file=sys.stderr)
+        return 2
+
+    files = _read_rendered_dir(rendered)
+    if not files:
+        print(f"error: no *.tf or terraform.tfvars under {rendered}", file=sys.stderr)
+        return 2
+
+    plan_output = None
+    if args.plan:
+        plan_output = Path(args.plan).read_text()
+
+    # Honor a public-access acknowledgement recorded in the committed intent.
+    ack = False
+    intent_file = rendered / "deployment-intent.json"
+    if intent_file.is_file():
+        try:
+            ack = json.loads(intent_file.read_text()).get("public_access_acknowledged") is True
+        except json.JSONDecodeError:
+            ack = False
+
+    report = evaluate_policies(files, plan_output, public_access_acknowledged=ack)
+
+    print(f"Policy gate over {rendered} ({len(report.results)} checks):")
+    for r in report.results:
+        print(f"  [{'PASS' if r.passed else 'FAIL'}] {r.check}: {r.message}")
+    if report.ok:
+        print("ALL POLICY GATES PASSED ✅")
+        return 0
+    print(f"{len(report.failures)} gate(s) FAILED — merge-to-apply is blocked.", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

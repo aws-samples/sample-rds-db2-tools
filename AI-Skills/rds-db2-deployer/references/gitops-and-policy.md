@@ -73,6 +73,28 @@ after it begins, the failure handling in `error-handling` reports the failing
 module, the failing step, and the externalized state location for recovery
 (R15.4).
 
+## Deployment repo layout + ready-to-use CI
+
+A copyable GitOps repo scaffold ships at
+[`templates/gitops-repo/`](../templates/gitops-repo/): a layout where each
+instance is one `deployments/<db_instance_identifier>/` folder (its own
+remote-state key, so many instances never collide — see
+`terraform-composition.md`), an `account-defaults.json` at the root (see
+`account-defaults.md`), and a GitHub Actions workflow that runs **plan + policy
+gate on the PR** and **apply on merge** using an OIDC role in the gitops account.
+
+The policy gate has a CLI for CI:
+
+```bash
+python -m scripts.policy_gate <rendered-deployment-dir> [--plan plan.txt]
+```
+
+It reads the rendered `*.tf` + `*/terraform.tfvars` (and the committed
+`deployment-intent.json` for a public-access acknowledgement), prints a discrete
+PASS/FAIL per gate, and exits non-zero if any gate fails — so a CI job gates
+merge-to-apply on it (R12.3/R12.4). The intent layer is also re-checked in CI via
+`python -m scripts.validate_intent <intent.json>`.
+
 ## Sources
 
 - AWS blog, [Deploying Amazon RDS for Db2 using Terraform](https://aws.amazon.com/blogs/database/deploying-amazon-rds-for-db2-using-terraform/).
