@@ -39,6 +39,7 @@ which account a deployment targets.
 | Field | Console location | Notes |
 |---|---|---|
 | `region` | top-right region selector | e.g. `us-east-1` |
+| `vpc_id` | VPC console → Your VPCs | always yours — the skill never creates a VPC |
 | `db_subnet_group_name` | RDS → Subnet groups | the group spanning ≥ 2 AZs; bootstrap via `1-networking` if absent |
 | `vpc_security_group_ids` | VPC → Security groups | the SG(s) for the DB; skill opens only TCP 50443 from your ingress |
 | `kms_key_id` | KMS → Customer managed keys | must be **multi-region** (key id starts with `mrk-`); bootstrap via `3-kms` if absent |

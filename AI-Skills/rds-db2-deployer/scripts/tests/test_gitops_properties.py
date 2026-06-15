@@ -96,6 +96,7 @@ def _compliant_intent() -> dict:
         "storage_encrypted": True,
         "kms_key_id": "arn:aws:kms:us-east-1:111122223333:key/mrk-1234",
         "vpc_security_group_ids": ["sg-0123456789abcdef0"],
+        "vpc_id": "vpc-0123456789abcdef0",
         "db_subnet_group_name": "rds-db2-prod-subnets",
         "db_parameter_group_name": "",
         "monitoring_interval": 15,

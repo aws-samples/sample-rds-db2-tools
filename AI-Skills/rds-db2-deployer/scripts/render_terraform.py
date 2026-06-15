@@ -525,6 +525,10 @@ INTENT_FIELD_MAPPING: dict[str, FieldMapping] = {
     "backup_retention_period": [VarTarget("5-rds", "backup_retention_period")],
     "deletion_protection": [VarTarget("5-rds", "deletion_protection")],
     # --- networking / access ------------------------------------------------
+    "vpc_id": [
+        VarTarget("5-rds", "vpc_id"),
+        VarTarget("1-networking", "vpc_id"),
+    ],
     "publicly_accessible": [
         VarTarget("5-rds", "publicly_accessible"),
         VarTarget("1-networking", "publicly_accessible"),
@@ -1595,6 +1599,10 @@ def render_root_module(
     git_subdir: str = DEFAULT_GIT_SUBDIR,
     module_ref: str = DEFAULT_MODULE_REF,
     backend: Optional[BackendConfig] = None,
+    region: str = "us-east-1",
+    replica_region: Optional[str] = None,
+    module_variables: Optional[Mapping[str, "RenderedModule"]] = None,
+    sensitive_root_names: Optional[Mapping[tuple, str]] = None,
 ) -> str:
     """Render the root-module ``main.tf`` that references the existing modules.
 
@@ -1620,9 +1628,12 @@ def render_root_module(
     It remains a composition over the existing modules, never a parallel
     imperative deployer (R10.1).
     """
-    referenced = ["0-backend-setup"] + [
-        m for m in enabled_modules if m != "0-backend-setup"
-    ]
+    # The deployment root CONSUMES the remote-state backend (the `backend "s3"`
+    # block below), which 0-backend-setup bootstraps ONCE. It must NOT reference
+    # 0-backend-setup as a child module — doing so would try to re-create the
+    # state bucket and requires a state_bucket_name that is not part of a
+    # deployment intent. So 0-backend-setup is excluded from the referenced set.
+    referenced = [m for m in enabled_modules if m != "0-backend-setup"]
     lines = [
         "# Root module rendered by rds-db2-deployer Terraform_Composer.",
         "# It REUSES the existing RDS-Db2-Terraform modules (R10.1); it is not a",
@@ -1669,6 +1680,24 @@ def render_root_module(
             )
     lines.append("}")
     lines.append("")
+    # Provider configuration the rendered root must supply for a real apply / CI.
+    # The reused modules self-configure their default `aws` provider, but 5-rds
+    # ALSO declares `configuration_aliases = [aws.replica]`, so the caller must
+    # always pass an `aws.replica` provider — even with no standby (it then
+    # harmlessly mirrors the primary region). Without this the root fails
+    # `terraform init` with "Missing required provider configuration".
+    _replica_region = replica_region or region
+    lines.extend([
+        'provider "aws" {',
+        f'  region = "{region}"',
+        "}",
+        "",
+        'provider "aws" {',
+        '  alias  = "replica"',
+        f'  region = "{_replica_region}"',
+        "}",
+        "",
+    ])
     if source_mode == SOURCE_MODE_GIT:
         lines.append(
             f"# Module sources: pinned git ref {module_ref!r} on {git_repo}"
@@ -1696,12 +1725,48 @@ def render_root_module(
         block_name = module.split("-", 1)[1].replace("-", "_")
         lines.append(f'module "{block_name}" {{')
         lines.append(f'  source = "{source}"')
-        lines.append(
-            f"  # inputs: see {module}/terraform.tfvars "
-            "(rendered from the Deployment_Intent)"
-        )
+        if module == "5-rds":
+            # 5-rds requires the caller to pass the aws.replica configuration
+            # alias it declares (used only for a cross-region standby).
+            lines.append("  providers = {")
+            lines.append("    aws.replica = aws.replica")
+            lines.append("  }")
+        # Wire the module's inputs directly as block arguments so a single
+        # `terraform apply` of this root drives the child modules (Terraform does
+        # not auto-load a child module's sibling terraform.tfvars). The same
+        # values are also written to <module>/terraform.tfvars as the committed
+        # record and for the policy gate.
+        rendered = module_variables.get(module) if module_variables else None
+        if rendered is not None and rendered.variables:
+            for name in sorted(rendered.variables):
+                root = (sensitive_root_names or {}).get((module, name))
+                if root is not None:
+                    # Sensitive input -> reference a sensitive root variable; the
+                    # literal value lives in the root terraform.tfvars, never here.
+                    lines.append(f"  {name} = var.{root}")
+                else:
+                    lines.append(
+                        f"  {name} = {format_hcl_value(rendered.variables[name])}"
+                    )
+        else:
+            lines.append(
+                f"  # inputs: see {module}/terraform.tfvars "
+                "(rendered from the Deployment_Intent)"
+            )
         lines.append("}")
         lines.append("")
+    # Declare the sensitive root variables referenced above (values supplied by
+    # the root terraform.tfvars), so no Sensitive_Value appears literally in
+    # main.tf (R12.1 / R15).
+    if sensitive_root_names:
+        lines.append("# Sensitive inputs are passed via these root variables; their")
+        lines.append("# values live in the root terraform.tfvars, not in this file.")
+        for root in sorted(set(sensitive_root_names.values())):
+            lines.append(f'variable "{root}" {{')
+            lines.append("  type      = string")
+            lines.append("  sensitive = true")
+            lines.append("}")
+            lines.append("")
     return "\n".join(lines) + "\n"
 
 
@@ -1815,6 +1880,23 @@ def render_terraform(
 
     enabled = select_enabled_modules(intent, populated)
 
+    # Single-root apply needs each child module's inputs wired as block arguments
+    # (Terraform does not auto-load a child module's sibling tfvars). Sensitive
+    # inputs are referenced via root variables (declared sensitive) whose values
+    # live ONLY in the root terraform.tfvars, so no Sensitive_Value appears as a
+    # literal in main.tf (R12.1 / R15).
+    sensitive_root_names: dict[tuple, str] = {}
+    sensitive_root_values: dict[str, Any] = {}
+    for _mname, _rm in populated.items():
+        if _mname == "0-backend-setup":
+            continue
+        _block = _mname.split("-", 1)[1].replace("-", "_")
+        for _vname in _rm.sensitive_variables:
+            if _vname in _rm.variables:
+                _root = f"{_block}_{_vname}"
+                sensitive_root_names[(_mname, _vname)] = _root
+                sensitive_root_values[_root] = _rm.variables[_vname]
+
     # #2: derive a per-deployment backend keyed on the deployment identifier so
     # multiple instances get isolated state. An explicit `backend` wins; set
     # `emit_backend=False` to omit the block entirely (e.g. validate harnesses).
@@ -1837,6 +1919,10 @@ def render_terraform(
             git_subdir=git_subdir,
             module_ref=module_ref,
             backend=backend,
+            region=str(intent.get("region") or "us-east-1"),
+            replica_region=(intent.get("standby_replica_region") or None),
+            module_variables=populated,
+            sensitive_root_names=sensitive_root_names,
         ),
         # The SSL-only ingress (R6.5) is rendered for every deployment as a
         # supplement alongside the root module; the Db2 SSL parameters (R6.2)
@@ -1846,6 +1932,21 @@ def render_terraform(
     for module in enabled:
         rendered = populated.get(module) or RenderedModule(module=module, variables={})
         files[f"{module}/terraform.tfvars"] = render_tfvars(rendered)
+
+    # Root terraform.tfvars: supplies the sensitive root variables referenced in
+    # main.tf. Auto-loaded by Terraform; a tfvars surface so it may carry the
+    # Sensitive_Values that must never appear in main.tf (R12.1 / R15).
+    if sensitive_root_values:
+        sv_lines = [
+            "# Sensitive deployment inputs (auto-loaded). Referenced as sensitive",
+            "# root variables in main.tf so they never appear there as literals.",
+            "",
+        ]
+        for root in sorted(sensitive_root_values):
+            sv_lines.append(
+                f"{root} = {format_hcl_value(sensitive_root_values[root])}  # sensitive"
+            )
+        files["terraform.tfvars"] = "\n".join(sv_lines) + "\n"
 
     return RenderResult(files=files, enabled_modules=enabled, modules=populated)
 

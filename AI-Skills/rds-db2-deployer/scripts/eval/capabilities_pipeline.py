@@ -152,6 +152,7 @@ def capability_environment(
         master_user_secret_kms_key_id=(
             f"arn:aws:kms:{region}:{acct}:key/mrk-0000secret00000"
         ),
+        vpc_id="vpc-0123456789abcdef0",
         vpc_security_group_ids=["sg-0123456789abcdef0"],
         db_subnet_group_name="rds-db2-skill-eval-subnets",
         monitoring_role_arn=f"arn:aws:iam::{acct}:role/rds-db2-monitoring-role-eval",

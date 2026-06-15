@@ -161,6 +161,7 @@ def missing_required_account_fields(defaults: Mapping[str, Any]) -> list[str]:
     """
     must_have = (
         "region",
+        "vpc_id",
         "kms_key_id",
         "master_user_secret_kms_key_id",
         "db_subnet_group_name",

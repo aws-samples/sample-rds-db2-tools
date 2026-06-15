@@ -22,6 +22,7 @@
     "publicly_accessible",
     "storage_encrypted",
     "kms_key_id",
+    "vpc_id",
     "vpc_security_group_ids",
     "db_subnet_group_name",
     "db_parameter_group_name",
@@ -152,6 +153,11 @@
     },
     "db_subnet_group_name": {
       "description": "DB subnet group name (existing or to-be-created).",
+      "type": "string",
+      "minLength": 1
+    },
+    "vpc_id": {
+      "description": "VPC ID the instance and its networking live in. Always customer-provided (the skill never creates a VPC); required by the 5-rds and 1-networking modules.",
       "type": "string",
       "minLength": 1
     },

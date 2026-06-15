@@ -9,6 +9,7 @@
     "schema_version": { "description": "Version of this account-defaults file format.", "type": "string" },
     "_about": { "description": "Free-text note for humans; ignored by the skill.", "type": "string" },
     "region": { "description": "Default AWS region for deployments in this account (e.g. us-east-1).", "type": "string", "minLength": 1 },
+    "vpc_id": { "description": "VPC the DB lives in (VPC console). Always customer-owned — the skill never creates a VPC. Required by the 5-rds and 1-networking modules.", "type": "string", "minLength": 1 },
     "db_subnet_group_name": { "description": "Existing DB subnet group to reuse (RDS console -> Subnet groups). If none exists, the gitops account creates one ONCE via the 1-networking module, then records its name here.", "type": "string", "minLength": 1 },
     "vpc_security_group_ids": { "description": "Existing security group id(s) to reuse (VPC console -> Security groups). The skill opens only TCP 50443 from your ingress sources on these. If none exists, the gitops account creates one ONCE via 1-networking, then records its id here.", "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
     "kms_key_id": { "description": "Customer-managed MULTI-REGION KMS key (MRK) ARN for storage encryption (key id starts with 'mrk-'). Reused across deployments. If none exists, the gitops account creates one ONCE via the 3-kms module, then records its ARN here.", "type": "string", "minLength": 1 },

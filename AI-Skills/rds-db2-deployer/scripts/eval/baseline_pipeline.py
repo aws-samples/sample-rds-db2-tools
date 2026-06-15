@@ -130,6 +130,7 @@ class BaselineEnvironment:
     region: str = DEFAULT_REGION
     kms_key_id: str = ""
     master_user_secret_kms_key_id: str = ""
+    vpc_id: str = ""
     vpc_security_group_ids: list[str] = field(default_factory=list)
     db_subnet_group_name: str = ""
     monitoring_role_arn: str = ""
@@ -147,6 +148,7 @@ class BaselineEnvironment:
             "kms_key_id": self.kms_key_id,
             "master_user_secret_kms_key_id": self.master_user_secret_kms_key_id,
             "manage_master_user_password": True,
+            "vpc_id": self.vpc_id,
             "vpc_security_group_ids": list(self.vpc_security_group_ids),
             "db_subnet_group_name": self.db_subnet_group_name,
             "db_parameter_group_name": "",

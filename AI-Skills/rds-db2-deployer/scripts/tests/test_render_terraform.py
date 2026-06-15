@@ -66,6 +66,7 @@ def _base_intent() -> dict:
         "storage_encrypted": True,
         "kms_key_id": "arn:aws:kms:us-east-1:111122223333:key/mrk-1234",
         "vpc_security_group_ids": ["sg-0123456789abcdef0"],
+        "vpc_id": "vpc-0123456789abcdef0",
         "db_subnet_group_name": "rds-db2-prod-subnets",
         "db_parameter_group_name": "",
         "monitoring_interval": 15,
@@ -281,8 +282,9 @@ def test_root_module_git_ref_is_overridable(intent, terraform_modules_root):
     )
     main_tf = result.files["main.tf"]
     assert "?ref=v1.2.3" in main_tf
-    # Every referenced module is pinned to the same ref.
-    assert main_tf.count("?ref=v1.2.3") >= len(result.enabled_modules) + 1
+    # Every enabled module is pinned to the same ref (0-backend-setup is NOT a
+    # child module of the deployment root — it is consumed via the backend block).
+    assert main_tf.count("?ref=v1.2.3") >= len(result.enabled_modules)
 
 
 def test_unknown_source_mode_raises(intent, terraform_modules_root):
@@ -361,13 +363,17 @@ def test_state_key_helper_is_well_formed_for_empty_name():
     )
 
 
-def test_backend_setup_referenced_but_not_intent_driven(intent, terraform_modules_root):
-    """R10.1: the root references 0-backend-setup, but it gets no intent tfvars."""
+def test_backend_setup_not_a_child_module_of_deployment_root(intent, terraform_modules_root):
+    """The deployment root CONSUMES the remote-state backend (the backend "s3"
+    block); it must NOT reference 0-backend-setup as a child module (that would
+    try to re-create the state bucket and needs a var the intent lacks)."""
     result = render_terraform(intent, modules_root=terraform_modules_root)
-    assert 'module "backend_setup"' in result.files["main.tf"]
-    # The bootstrap module is not driven by the deployment intent.
+    assert 'module "backend_setup"' not in result.files["main.tf"]
+    # It is the bootstrap, never an intent-driven module nor a rendered tfvars.
     assert "0-backend-setup" not in result.enabled_modules
     assert "0-backend-setup/terraform.tfvars" not in result.files
+    # The backend it bootstraps is still consumed via the backend "s3" block.
+    assert 'backend "s3"' in result.files["main.tf"]
 
 
 def test_rendered_tfvars_uses_real_variable_names_only(intent, terraform_modules_root):

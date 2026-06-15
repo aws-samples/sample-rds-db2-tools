@@ -2,6 +2,7 @@
   "schema_version": "1.0",
   "_about": "Fill this ONCE from the AWS console (view access is enough). The agent reuses it for every deployment in this account. See the skill's references/account-defaults.md. No secrets here.",
   "region": "us-east-1",
+  "vpc_id": "vpc-REPLACE",
   "db_subnet_group_name": "REPLACE-with-your-db-subnet-group",
   "vpc_security_group_ids": ["sg-REPLACE"],
   "kms_key_id": "arn:aws:kms:us-east-1:111122223333:key/mrk-REPLACE",
