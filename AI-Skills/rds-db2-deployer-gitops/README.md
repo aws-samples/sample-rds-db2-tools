@@ -11,12 +11,19 @@ then on the agent renders deployments into it as pull requests.
    your enterprise GitHub/GitLab as a new repo, e.g. `rds-db2-deployments`:
    ```bash
    # copy just this template out of the skill repo
-   git clone https://github.com/aws-samples/sample-rds-db2-tools.git
-   cp -R sample-rds-db2-tools/AI-Skills/rds-db2-deployer-gitops rds-db2-deployer-gitops
-   rm -fr sample-rds-db2-tools
+   mkdir rds-db2-deployer-gitops
    cd rds-db2-deployer-gitops
-   git init && git add -A && git commit -m "Initialize RDS for Db2 GitOps repo"
+   git clone https://github.com/aws-samples/sample-rds-db2-tools.git
+   cp -R sample-rds-db2-tools/AI-Skills/rds-db2-deployer-gitops/* .
+   rm -fr sample-rds-db2-tools
+   git init
+   # Replace <your-git-host> with your git link
+   # Replace <you> with your user
    git remote add origin https://<your-git-host>/<you>/rds-db2-deployer-gitops.git
+   git add -A
+   git commit -m "Initialize RDS for Db2 GitOps repo"
+   git branch -M main
+   # If git push fails - existing content. Either manually rebase or use --force in the following 
    git push -u origin main
    ```
 2. **Create and fill `account-defaults.json`** once from the AWS console (view
