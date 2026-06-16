@@ -1,0 +1,16 @@
+# Terraform working state — never commit these to the gitops repo.
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+# Plan artifacts produced in CI.
+**/tfplan
+**/plan.txt
+**/plan.masked.txt
+
+# GitOps exception: rendered deployment tfvars ARE the desired state and MUST be
+# committed so CI can plan/apply them. If you initialize this repo with the stock
+# Terraform .gitignore (which ignores *.tfvars), this negation re-includes the
+# deployment inputs. They carry NO secrets — the master password is RDS-managed
+# and IBM IDs are low-sensitivity.
+!deployments/**/*.tfvars

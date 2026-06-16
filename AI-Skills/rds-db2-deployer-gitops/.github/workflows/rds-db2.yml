@@ -1,0 +1,136 @@
+name: rds-db2 deploy
+
+# Phase A (no AWS): discover changed deployments -> AWS-free GATE (validate_intent
+#   + policy_gate) on every PR. This is the required green check.
+# Phase B (AWS, opt-in via the RDS_DB2_ENABLE_PLAN repo variable = "true"):
+#   terraform plan on PR + apply on merge, using an OIDC role in the gitops account.
+# Each deployments/<id>/ folder is an independent Terraform root with its own
+# remote-state key, so changed folders are processed independently (multi-instance).
+
+on:
+  pull_request:
+    paths:
+      - "deployments/**"
+  push:
+    branches: [main]
+    paths:
+      - "deployments/**"
+
+permissions:
+  id-token: write        # for AWS OIDC (Phase B)
+  contents: read
+  pull-requests: write   # to post the masked plan as a PR comment
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  STATE_BUCKET: ${{ vars.RDS_DB2_STATE_BUCKET }}
+  # The skill is installed from the published repo. Falls back to 'main' when the
+  # RDS_DB2_MODULE_REF repo variable is unset (use a release TAG for production).
+  SKILL_REF: ${{ vars.RDS_DB2_MODULE_REF || 'main' }}
+
+jobs:
+  # 1) Discover which deployments/<id>/ folders changed in this event.
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.changed.outputs.dirs }}
+      any: ${{ steps.changed.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: changed
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"; HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"; HEAD="${{ github.sha }}"
+          fi
+          dirs=$(git diff --name-only "$BASE" "$HEAD" -- 'deployments/*/**' \
+            | awk -F/ '{print $1"/"$2}' | sort -u | sed '/^$/d')
+          echo "changed deployment dirs:"; echo "$dirs"
+          json=$(printf '%s\n' "$dirs" | sed '/^$/d' | jq -R . | jq -cs .)
+          echo "dirs=$json" >> "$GITHUB_OUTPUT"
+          [ "$json" = "[]" ] && echo "any=false" >> "$GITHUB_OUTPUT" || echo "any=true" >> "$GITHUB_OUTPUT"
+
+  # 2) GATE (no AWS) — the required check. Runs on every PR.
+  gate:
+    needs: discover
+    if: github.event_name == 'pull_request' && needs.discover.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJson(needs.discover.outputs.dirs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install the rds-db2-deployer skill (validator + policy gate)
+        run: pip install "git+https://github.com/aws-samples/sample-rds-db2-tools.git@${{ env.SKILL_REF }}#subdirectory=AI-Skills/rds-db2-deployer"
+      - name: Validate the deployment intent (schema + security invariants)
+        run: python -m scripts.validate_intent "${{ matrix.dir }}/deployment-intent.json"
+      - name: Policy gate (5 discrete checks over the rendered Terraform)
+        run: python -m scripts.policy_gate "${{ matrix.dir }}"
+
+  # 3) PLAN (AWS, opt-in) — set repo variable RDS_DB2_ENABLE_PLAN=true to enable.
+  plan:
+    needs: [discover, gate]
+    if: github.event_name == 'pull_request' && needs.discover.outputs.any == 'true' && vars.RDS_DB2_ENABLE_PLAN == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJson(needs.discover.outputs.dirs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.RDS_DB2_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: terraform init
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -input=false -backend-config="bucket=${{ env.STATE_BUCKET }}"
+      - name: terraform plan
+        working-directory: ${{ matrix.dir }}
+        run: terraform plan -input=false -no-color -out=tfplan | tee plan.txt
+      - name: Mask sensitive values in the plan
+        working-directory: ${{ matrix.dir }}
+        run: |
+          sed -E -e 's/(ibm_(customer|site)_id[[:space:]]*=[[:space:]]*)"[^"]*"/\1"***"/I' \
+                 -e 's/(.*password.*=[[:space:]]*)"[^"]*"/\1"***"/I' plan.txt > plan.masked.txt
+      - name: Post masked plan to the PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('${{ matrix.dir }}/plan.masked.txt', 'utf8');
+            const body = `### terraform plan — \`${{ matrix.dir }}\`\n\n<details><summary>masked plan</summary>\n\n\`\`\`\n${plan.slice(0, 60000)}\n\`\`\`\n</details>`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, body });
+
+  # 4) APPLY (AWS, opt-in) — on merge to main, same enable flag.
+  apply:
+    needs: discover
+    if: github.event_name == 'push' && needs.discover.outputs.any == 'true' && vars.RDS_DB2_ENABLE_PLAN == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJson(needs.discover.outputs.dirs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.RDS_DB2_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: terraform init
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -input=false -backend-config="bucket=${{ env.STATE_BUCKET }}"
+      - name: terraform apply
+        working-directory: ${{ matrix.dir }}
+        run: terraform apply -input=false -auto-approve
