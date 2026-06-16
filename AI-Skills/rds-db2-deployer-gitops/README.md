@@ -18,8 +18,9 @@ then on the agent renders deployments into it as pull requests.
    git remote add origin https://<your-git-host>/<you>/rds-db2-deployments.git
    git push -u origin main
    ```
-2. **Fill `account-defaults.json`** once from the AWS console (view access is
-   enough). See the skill's `references/account-defaults.md` and the runbook
+2. **Create and fill `account-defaults.json`** once from the AWS console (view
+   access is enough): `cp account-defaults.example.json account-defaults.json`,
+   then edit it. See the skill's `references/account-defaults.md` and the runbook
    prerequisites step. Real IBM Passport Advantage IDs are required for a real
    apply.
 3. **Set the CI variables/secrets** (table below) when you want apply-on-merge.
@@ -31,7 +32,8 @@ That's it. From then on you ask the agent ("deploy a dev sandbox"); it renders a
 
 ```
 .
-├── account-defaults.json          # the account basics, filled ONCE
+├── account-defaults.example.json  # template — copy to account-defaults.json and fill
+├── account-defaults.json          # the account basics, filled ONCE (you create this)
 ├── deployments/
 │   └── <db_instance_identifier>/  # ONE folder per instance (agent-rendered)
 │       ├── main.tf  security.tf
