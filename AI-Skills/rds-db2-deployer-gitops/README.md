@@ -12,10 +12,11 @@ then on the agent renders deployments into it as pull requests.
    ```bash
    # copy just this template out of the skill repo
    git clone https://github.com/aws-samples/sample-rds-db2-tools.git
-   cp -R sample-rds-db2-tools/AI-Skills/rds-db2-deployer-gitops my-rds-db2-deployments
-   cd my-rds-db2-deployments
+   cp -R sample-rds-db2-tools/AI-Skills/rds-db2-deployer-gitops rds-db2-deployer-gitops
+   rm -fr sample-rds-db2-tools
+   cd rds-db2-deployer-gitops
    git init && git add -A && git commit -m "Initialize RDS for Db2 GitOps repo"
-   git remote add origin https://<your-git-host>/<you>/rds-db2-deployments.git
+   git remote add origin https://<your-git-host>/<you>/rds-db2-deployer-gitops.git
    git push -u origin main
    ```
 2. **Create and fill `account-defaults.json`** once from the AWS console (view
