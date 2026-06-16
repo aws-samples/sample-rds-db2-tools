@@ -137,7 +137,7 @@ DEFAULT_GIT_SUBDIR = "tools/rds-db2-terraform"
 #: aws-samples/sample-rds-db2-tools before the skill is published. ``v0.0.0`` is
 #: a deliberately invalid placeholder so an unset ref fails loudly at
 #: ``terraform init`` rather than silently pulling a wrong revision.
-DEFAULT_MODULE_REF = os.environ.get("RDS_DB2_MODULE_REF", "v0.0.0")
+DEFAULT_MODULE_REF = os.environ.get("RDS_DB2_MODULE_REF", "rds-db2-deployer-v0.1.0")
 
 #: The two supported module-source modes. ``"git"`` (default) emits the pinned
 #: git ref above — the production source of truth. ``"local"`` emits a relative
@@ -1739,15 +1739,29 @@ def render_root_module(
         rendered = module_variables.get(module) if module_variables else None
         if rendered is not None and rendered.variables:
             for name in sorted(rendered.variables):
+                value = rendered.variables[name]
+                # Wire the instance to the parameter group created by the
+                # 4-parameter-group module (which carries the IBM IDs + DB2COMM=SSL)
+                # when the intent did not name an existing group. Without this the
+                # instance falls back to AWS's default group (no IBM IDs) and RDS
+                # rejects the BYOL create.
+                if (
+                    module == "5-rds"
+                    and name == "parameter_group_name"
+                    and (value in (None, ""))
+                    and "4-parameter-group" in referenced
+                ):
+                    lines.append(
+                        "  parameter_group_name = module.parameter_group.parameter_group_name"
+                    )
+                    continue
                 root = (sensitive_root_names or {}).get((module, name))
                 if root is not None:
                     # Sensitive input -> reference a sensitive root variable; the
                     # literal value lives in the root terraform.tfvars, never here.
                     lines.append(f"  {name} = var.{root}")
                 else:
-                    lines.append(
-                        f"  {name} = {format_hcl_value(rendered.variables[name])}"
-                    )
+                    lines.append(f"  {name} = {format_hcl_value(value)}")
         else:
             lines.append(
                 f"  # inputs: see {module}/terraform.tfvars "
