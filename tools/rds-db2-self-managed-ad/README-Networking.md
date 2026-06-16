@@ -103,6 +103,11 @@ NSGs.
 
 ## 3. AD in a different VPC or different AWS account
 
+> **Further reading:** For a detailed walkthrough of joining RDS for Db2
+> instances in multiple AWS accounts to a single shared AD domain, see the
+> AWS Database Blog:
+> [Join your Amazon RDS for Db2 instances across accounts to a single shared domain](https://aws.amazon.com/blogs/database/join-your-amazon-rds-for-db2-instances-across-accounts-to-a-single-shared-domain/).
+
 ### Option A — VPC Peering
 
 1. Create a **VPC peering connection** between the RDS VPC and the AD VPC.
