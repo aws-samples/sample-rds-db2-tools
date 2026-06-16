@@ -660,12 +660,12 @@ def check_ibm_ids_present(evidence: PolicyEvidence) -> PolicyResult:
     (R7/R8)."""
     customer = _lookup(
         evidence,
-        ("ibm_customer_id", "rds.ibm_customer_id"),
+        ("ibm_customer_id", "rds.ibm_customer_id", "ibm_customer_id_ssm"),
         modules=["4-parameter-group"],
     )
     site = _lookup(
         evidence,
-        ("ibm_site_id", "rds.ibm_site_id"),
+        ("ibm_site_id", "rds.ibm_site_id", "ibm_site_id_ssm"),
         modules=["4-parameter-group"],
     )
 

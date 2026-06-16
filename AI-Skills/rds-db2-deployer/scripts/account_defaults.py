@@ -167,17 +167,20 @@ def missing_required_account_fields(defaults: Mapping[str, Any]) -> list[str]:
         "db_subnet_group_name",
         "vpc_security_group_ids",
         "monitoring_role_arn",
-        "ibm_customer_id",
-        "ibm_site_id",
     )
-    out: list[str] = []
-    for f in must_have:
+
+    def _present(f: str) -> bool:
         v = defaults.get(f)
         if isinstance(v, (list, tuple)):
-            if len(v) == 0:
-                out.append(f)
-        elif not str(v or "").strip():
-            out.append(f)
+            return len(v) > 0
+        return bool(str(v or "").strip())
+
+    out: list[str] = [f for f in must_have if not _present(f)]
+    # IBM IDs: satisfied by either the literal field or its SSM-name companion.
+    if not (_present("ibm_customer_id") or _present("ibm_customer_id_ssm")):
+        out.append("ibm_customer_id (or ibm_customer_id_ssm)")
+    if not (_present("ibm_site_id") or _present("ibm_site_id_ssm")):
+        out.append("ibm_site_id (or ibm_site_id_ssm)")
     return out
 
 

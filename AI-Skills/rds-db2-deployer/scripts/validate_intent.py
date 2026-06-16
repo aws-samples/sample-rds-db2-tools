@@ -719,41 +719,56 @@ def validate_security_invariants(
             )
         )
 
-    # --- R7.8 / R7.9: IBM identifiers present and well-formed for all editions
+    # --- R7.8 / R7.9: IBM identifiers present and well-formed for all editions.
+    # Each ID may be supplied as a literal (ibm_customer_id / ibm_site_id) OR as
+    # an SSM parameter name (ibm_customer_id_ssm / ibm_site_id_ssm) so the value
+    # can be kept out of the deployment repo. Exactly one form must be present.
     for field_name in IBM_ID_FIELDS:
         value = intent.get(field_name)
-        if value is None:
+        ssm_field = f"{field_name}_ssm"
+        ssm_value = intent.get(ssm_field)
+        has_literal = isinstance(value, str) and value.strip() != ""
+        has_ssm = isinstance(ssm_value, str) and ssm_value.strip() != ""
+
+        if not has_literal and not has_ssm:
             errors.append(
                 ValidationError(
                     field=field_name,
                     rule="ibm_identifier_required",
                     message=(
                         f"{field_name} is required for every Db2 edition "
-                        f"(db2-ce, db2-se, db2-ae) and is missing (R7.8)."
+                        f"(db2-ce, db2-se, db2-ae): supply either {field_name} "
+                        f"(literal) or {ssm_field} (an SSM parameter name) (R7.8)."
                     ),
                     layer=LAYER_SECURITY,
                 )
             )
             continue
-        if not isinstance(value, str) or not value.strip():
+        if has_literal and has_ssm:
             errors.append(
                 ValidationError(
                     field=field_name,
-                    rule="ibm_identifier_malformed",
+                    rule="ibm_identifier_conflict",
                     message=(
-                        f"{field_name} is malformed: it is empty after "
-                        f"trimming whitespace (R7.9)."
+                        f"provide exactly one of {field_name} or {ssm_field}, "
+                        f"not both (R7.8)."
                     ),
                     layer=LAYER_SECURITY,
                 )
             )
-        elif len(value.strip()) > IBM_ID_MAX_LENGTH:
+            continue
+        # Length sanity applies to the literal value (and the SSM name); both
+        # must be non-empty after trimming and within the max length (R7.9).
+        present_field, present_value = (
+            (field_name, value) if has_literal else (ssm_field, ssm_value)
+        )
+        if len(present_value.strip()) > IBM_ID_MAX_LENGTH:
             errors.append(
                 ValidationError(
-                    field=field_name,
+                    field=present_field,
                     rule="ibm_identifier_malformed",
                     message=(
-                        f"{field_name} is malformed: it exceeds the maximum "
+                        f"{present_field} is malformed: it exceeds the maximum "
                         f"of {IBM_ID_MAX_LENGTH} characters (R7.9)."
                     ),
                     layer=LAYER_SECURITY,

@@ -82,6 +82,33 @@ and the agent can render a complete, single-`apply` plan for CI.
 prompt and the defaults file, the agent lists them and asks before building an
 intent. `missing_required_account_fields()` reports exactly this set.
 
+## Keeping IBM IDs out of the repo (SSM Parameter Store)
+
+The IBM customer/site IDs are confidential licensing identifiers. Rather than
+committing them to the gitops repo, you can store them in **SSM Parameter Store**
+(SecureString) and reference them by **name**:
+
+```json
+"ibm_customer_id_ssm": "/rds-db2/ibm-customer-id",
+"ibm_site_id_ssm": "/rds-db2/ibm-site-id"
+```
+
+When set, the `4-parameter-group` module reads the decrypted values from SSM at
+apply (via `data "aws_ssm_parameter"`), so only the parameter **names** — not the
+values — live in `account-defaults.json`, the rendered tfvars, and the intent.
+Supply **exactly one** form per ID: the literal `ibm_customer_id` / `ibm_site_id`,
+**or** the `ibm_customer_id_ssm` / `ibm_site_id_ssm` name (the validator and the
+module both reject supplying both or neither).
+
+Prerequisite + permissions:
+
+- Create the two SSM **SecureString** parameters once (any KMS key you control).
+- The deploy identity (CI OIDC role, or your operator) needs `ssm:GetParameter`
+  on those parameters and `kms:Decrypt` on their KMS key.
+- The values still land in Terraform **state** (an `aws_db_parameter_group`
+  attribute), which is encrypted + access-controlled in S3 and not version
+  controlled — the goal here is keeping them out of **git**.
+
 ## Validate the file (optional, in CI)
 
 The gitops/CI account can validate the file as a pre-merge check:

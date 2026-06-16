@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "_about": "Fill this ONCE from the AWS console (view access is enough). The agent reuses it for every deployment in this account. See the skill's references/account-defaults.md. No secrets here.",
+  "_about": "Fill this ONCE from the AWS console (view access is enough). The agent reuses it for every deployment in this account. See the skill's references/account-defaults.md. No secrets here. IBM IDs are referenced by SSM Parameter Store NAME (ibm_*_ssm) so the values stay out of this repo - create those SecureString params and grant the deploy role ssm:GetParameter + kms:Decrypt. To embed the IDs literally instead, replace the ibm_*_ssm fields with ibm_customer_id / ibm_site_id.",
   "region": "<REPLACE-Region-Name>",
   "vpc_id": "vpc-<REPLACE>",
   "db_subnet_group_name": "<REPLACE-with-your-db-subnet-group>",
@@ -9,8 +9,8 @@
   "master_user_secret_kms_key_id": "arn:aws:kms:us-east-1:<REPLACE-Account-ID>:key/mrk-<REPLACE>",
   "monitoring_role_arn": "arn:aws:iam::<REPLACE-Account-ID>:role/<REPLACE-monitoring-role-name>",
   "ingress_cidrs": ["<REPLACE-WITH-VPC-CIDR>"],
-  "ibm_customer_id": "<REPLACE-WITH-IBM-CUSTOMER-ID>",
-  "ibm_site_id": "<REPLACE-WITH-IBM-SITE-ID>",
+  "ibm_customer_id_ssm": "/rds-db2/ibm-customer-id",
+  "ibm_site_id_ssm": "/rds-db2/ibm-site-id",
   "tags": { "Project": "<REPLACE>", "Owner": "<REPLACE>" },
   "gitops_aws_account_id": "<REPLACE-Account-ID>"
 }

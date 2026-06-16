@@ -45,15 +45,29 @@ variable "parameter_group_name" {
 }
 
 variable "ibm_customer_id" {
-  description = "IBM customer ID (rds.ibm_customer_id). Required for RDS for Db2 licensing."
+  description = "IBM customer ID (rds.ibm_customer_id). Provide this OR ibm_customer_id_ssm. Required for RDS for Db2 licensing."
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "ibm_site_id" {
-  description = "IBM site ID (rds.ibm_site_id). Required for RDS for Db2 licensing."
+  description = "IBM site ID (rds.ibm_site_id). Provide this OR ibm_site_id_ssm. Required for RDS for Db2 licensing."
   type        = string
   sensitive   = true
+  default     = ""
+}
+
+variable "ibm_customer_id_ssm" {
+  description = "Name of an SSM Parameter Store parameter (SecureString) holding the IBM customer ID. When set, it is read (decrypted) at apply and used instead of ibm_customer_id, so the value never lives in the deployment repo. Provide this OR ibm_customer_id."
+  type        = string
+  default     = ""
+}
+
+variable "ibm_site_id_ssm" {
+  description = "Name of an SSM Parameter Store parameter (SecureString) holding the IBM site ID. When set, it is read (decrypted) at apply and used instead of ibm_site_id. Provide this OR ibm_site_id."
+  type        = string
+  default     = ""
 }
 
 # ── Mandatory provenance + customer tags (R14) ───────────────────────────────

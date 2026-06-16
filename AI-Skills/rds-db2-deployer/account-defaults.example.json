@@ -9,8 +9,8 @@
   "master_user_secret_kms_key_id": "arn:aws:kms:us-east-1:111122223333:key/mrk-REPLACE",
   "monitoring_role_arn": "arn:aws:iam::111122223333:role/REPLACE-monitoring-role",
   "ingress_cidrs": ["10.0.0.0/16"],
-  "ibm_customer_id": "1234567",
-  "ibm_site_id": "1234567890",
+  "ibm_customer_id_ssm": "/rds-db2/ibm-customer-id",
+  "ibm_site_id_ssm": "/rds-db2/ibm-site-id",
   "tags": { "Project": "REPLACE", "Owner": "REPLACE" },
   "gitops_aws_account_id": "111122223333"
 }

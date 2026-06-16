@@ -341,13 +341,15 @@ def test_missing_ibm_ids_rejected_for_each_edition():
 # ---------------------------------------------------------------------------
 
 
-def test_blank_ibm_id_rejected_as_malformed():
+def test_blank_ibm_id_rejected():
+    # A blank literal with no SSM companion means the ID was not supplied in
+    # either form -> rejected as required (supply ibm_customer_id OR *_ssm).
     intent = _base_intent()
     intent["ibm_customer_id"] = "   "
     errors = validate_security_invariants(intent)
     err = next((e for e in errors if e.field == "ibm_customer_id"), None)
     assert err is not None
-    assert err.rule == "ibm_identifier_malformed"
+    assert err.rule == "ibm_identifier_required"
 
 
 def test_overlong_ibm_id_rejected_as_malformed():

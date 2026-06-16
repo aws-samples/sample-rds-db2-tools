@@ -137,7 +137,7 @@ DEFAULT_GIT_SUBDIR = "tools/rds-db2-terraform"
 #: aws-samples/sample-rds-db2-tools before the skill is published. ``v0.0.0`` is
 #: a deliberately invalid placeholder so an unset ref fails loudly at
 #: ``terraform init`` rather than silently pulling a wrong revision.
-DEFAULT_MODULE_REF = os.environ.get("RDS_DB2_MODULE_REF", "rds-db2-deployer-v0.1.0")
+DEFAULT_MODULE_REF = os.environ.get("RDS_DB2_MODULE_REF", "rds-db2-deployer-v0.2.0")
 
 #: The two supported module-source modes. ``"git"`` (default) emits the pinned
 #: git ref above — the production source of truth. ``"local"`` emits a relative
@@ -562,6 +562,11 @@ INTENT_FIELD_MAPPING: dict[str, FieldMapping] = {
     # --- IBM licensing identifiers (sensitive; all editions) ---------------
     "ibm_customer_id": [VarTarget("4-parameter-group", "ibm_customer_id")],
     "ibm_site_id": [VarTarget("4-parameter-group", "ibm_site_id")],
+    # SSM-backed IBM IDs: the parameter NAMES (not the values) are mapped to the
+    # module's *_ssm vars; the module reads the decrypted values from SSM at apply
+    # so the IDs never live in the deployment repo. Names are not sensitive.
+    "ibm_customer_id_ssm": [VarTarget("4-parameter-group", "ibm_customer_id_ssm")],
+    "ibm_site_id_ssm": [VarTarget("4-parameter-group", "ibm_site_id_ssm")],
     # --- directory service (AWS Managed AD + self-managed AD) --------------
     "domain": [VarTarget("5-rds", "directory_id")],
     "domain_iam_role_name": [VarTarget("5-rds", "directory_role_name")],
