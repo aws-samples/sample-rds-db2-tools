@@ -167,10 +167,13 @@ def test_monitoring_enabled_with_role_is_valid(validator: Draft202012Validator) 
     assert _is_valid(validator, doc)
 
 
-def test_monitoring_enabled_without_role_is_invalid(validator: Draft202012Validator) -> None:
+def test_monitoring_enabled_without_role_is_valid(validator: Draft202012Validator) -> None:
+    # Blank monitoring_role_arn with enhanced monitoring on is now VALID: the
+    # composer creates the enhanced-monitoring role via 2-iam on the first apply
+    # and wires it into 5-rds (R10.6). Supplying a role reuses it instead.
     doc = _base_intent()
     doc.update({"monitoring_interval": 60})
-    assert not _is_valid(validator, doc)
+    assert _is_valid(validator, doc)
 
 
 # --- R18.5: managed-vs-manual password oneOf ---
@@ -197,10 +200,13 @@ def test_neither_password_mode_is_invalid(validator: Draft202012Validator) -> No
     assert not _is_valid(validator, doc)
 
 
-def test_managed_without_cmk_is_invalid(validator: Draft202012Validator) -> None:
+def test_managed_without_cmk_is_valid(validator: Draft202012Validator) -> None:
+    # Blank master_user_secret_kms_key_id with the managed-password branch is now
+    # VALID: the composer mirrors the storage CMK (created or reused) onto the
+    # managed-secret key (R6.10/R10.6). A distinct CMK may still be supplied.
     doc = _base_intent()
     del doc["master_user_secret_kms_key_id"]
-    assert not _is_valid(validator, doc)
+    assert _is_valid(validator, doc)
 
 
 # --- R18.6 / R18.7 / R18.8: AWS-managed vs self-managed AD ---

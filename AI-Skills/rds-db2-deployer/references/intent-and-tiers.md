@@ -45,8 +45,8 @@ another" escape. Selecting an option is identical to typing it (same value, same
 - **Master credentials?** ▶ Managed in Secrets Manager (recommended) · Supply a
   password manually
 - **Networking / KMS / monitoring?** ▶ Reuse the values in `account-defaults.json`
-  · Reuse different existing ones (paste names/ARNs) · (none yet → bootstrap once,
-  see `account-defaults.md`)
+  · Reuse different existing ones (paste names/ARNs) · Leave blank to create them
+  on the first deploy, then record + reuse (see `account-defaults.md`)
 - **Ingress CIDR for SSL 50443?** the account-default (e.g. `10.0.0.0/16`) ·
   _type another_
 - **IBM customer / site ID?** use the values in `account-defaults.json` · _type

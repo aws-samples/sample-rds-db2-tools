@@ -40,47 +40,66 @@ which account a deployment targets.
 |---|---|---|
 | `region` | top-right region selector | e.g. `us-east-1` |
 | `vpc_id` | VPC console → Your VPCs | always yours — the skill never creates a VPC |
-| `db_subnet_group_name` | RDS → Subnet groups | the group spanning ≥ 2 AZs; bootstrap via `1-networking` if absent |
-| `vpc_security_group_ids` | VPC → Security groups | the SG(s) for the DB; skill opens only TCP 50443 from your ingress |
-| `kms_key_id` | KMS → Customer managed keys | must be **multi-region** (key id starts with `mrk-`); bootstrap via `3-kms` if absent |
-| `master_user_secret_kms_key_id` | KMS → Customer managed keys | MRK CMK for the managed master-user secret |
-| `monitoring_role_arn` | IAM → Roles | Enhanced Monitoring role; bootstrap via `2-iam` if absent |
+| `db_subnet_group_name` | RDS → Subnet groups | the group spanning ≥ 2 AZs; **leave blank to create** via `1-networking`, or name an existing one to reuse |
+| `vpc_security_group_ids` | VPC → Security groups | the SG(s) for the DB (always yours); skill opens only TCP 50443 from your ingress |
+| `kms_key_id` | KMS → Customer managed keys | a **multi-region** CMK (key id starts `mrk-`); **leave blank to create** an MRK via `3-kms`, or name one to reuse |
+| `master_user_secret_kms_key_id` | KMS → Customer managed keys | MRK CMK for the managed master-user secret; **leave blank to mirror** the storage CMK |
+| `monitoring_role_arn` | IAM → Roles | Enhanced Monitoring role; **leave blank to create** via `2-iam`, or name one to reuse |
 | `ingress_cidrs` | your network team | private CIDR allowed to reach 50443 (e.g. `10.0.0.0/16`) |
 | `ibm_customer_id` / `ibm_site_id` | IBM Passport Advantage (not AWS) | required for every Db2 edition |
 | `tags.Project` / `tags.Owner` | your standard | `Environment` is set automatically from the tier |
 
-## Reuse existing resources; bootstrap once if absent
+## Blank to create, value to reuse (R10.5/10.6)
 
-A per-deployment intent **reuses** existing networking, KMS, and monitoring (the
-rendered root is a single, self-contained plan; it does not create these and
-wire their outputs into the instance). So these resources must already exist and
-their identifiers must be recorded here:
+For the three reusable account resources — the **DB subnet group**, the **MRK
+CMK**, and the **Enhanced-Monitoring role** — each field is now optional and
+behaves as a switch:
 
-- `db_subnet_group_name`, `kms_key_id`, `master_user_secret_kms_key_id`,
-  `monitoring_role_arn`, `vpc_security_group_ids` → reused as supplied.
+- **Leave it blank (or omit it)** → the composer renders the matching
+  foundational module and **creates** the resource on the first `apply`, wiring
+  its output straight into the instance:
+  - `db_subnet_group_name` blank → `1-networking` creates a subnet group from
+    your VPC's subnets → fed to `5-rds.db_subnet_group_name`.
+  - `kms_key_id` blank → `3-kms` creates a **multi-region** customer-managed CMK
+    (`multi_region_key=true`, so the storage-encryption invariant holds) → fed to
+    `5-rds.kms_key_arn`.
+  - `monitoring_role_arn` blank → `2-iam` creates the Enhanced-Monitoring role →
+    fed to `5-rds.monitoring_role_arn`.
+  - `master_user_secret_kms_key_id` blank → mirrors the storage CMK (the created
+    MRK, or the supplied storage key) so the managed-secret is CMK-encrypted
+    without a second key.
+- **Supply an existing identifier** → the create module is skipped and the
+  instance **reuses** the resource you named.
 
-If your account does not have them yet, the **gitops/CI account** (full access)
-creates them **once** by applying the foundational modules, then you record the
-results in this file:
+What does NOT auto-create (always supply): `vpc_id` (the skill never creates a
+VPC) and `vpc_security_group_ids` (the security group is always yours; the skill
+only opens TCP 50443 on it).
 
-- subnet group + security group → `1-networking`
-- MRK CMK(s) → `3-kms`
-- Enhanced Monitoring role → `2-iam`
+### Create once, then record and reuse
 
-This is a one-time bootstrap (foundational infra), separate from the
-per-deployment flow (instance infra). After it, every deployment is reuse-only
-and the agent can render a complete, single-`apply` plan for CI.
+These are **account-level, shared** resources — you want one subnet group, one
+CMK, and one monitoring role for the account, not one per database. The created
+names are deterministic and keyed on your `Project` tag, so two *blank*
+deployments with the same tag would collide. The intended workflow:
 
-> Future enhancement: a one-shot mode where a single deployment PR also creates
-> the networking/KMS/role and wires their outputs into the instance. Not enabled
-> today — the composer renders reuse, so supply these values.
+1. **First deployment** in the account: leave the three fields blank → the apply
+   creates them.
+2. **Record** the created identifiers (from the Terraform outputs / console) back
+   into `account-defaults.json`.
+3. **Every subsequent deployment** reuses them (values now present).
 
-## What the skill cannot assume (always asked if absent)
+So "blank = create" is really a **one-shot bootstrap built into your first
+deployment**; steady state is reuse. (Concurrent first-time blank deployments in
+the same account/tag are not supported — bootstrap once, then fan out.)
 
-`region`, `ibm_customer_id`, and `ibm_site_id` have no safe default and the skill
-**never fabricates** the IBM identifiers. If they are missing from both the
-prompt and the defaults file, the agent lists them and asks before building an
-intent. `missing_required_account_fields()` reports exactly this set.
+## What the skill always needs (asked if absent)
+
+`region`, `vpc_id`, `vpc_security_group_ids`, and the IBM identifiers
+(`ibm_customer_id`/`ibm_site_id`, or their `*_ssm` names) have no safe default —
+the skill **never fabricates** them. If any is missing from both the prompt and
+the defaults file, the agent lists it and asks before building an intent.
+`missing_required_account_fields()` reports exactly this set (the reusable
+subnet-group/KMS/monitoring fields are NOT in it — blank just means create).
 
 ## Keeping IBM IDs out of the repo (SSM Parameter Store)
 

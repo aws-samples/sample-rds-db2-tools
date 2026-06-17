@@ -27,7 +27,10 @@ then on the agent renders deployments into it as pull requests.
    git push -u origin main
    ```
 2. **Create and fill `account-defaults.json`** once from the AWS console (view
-   access is enough): `cp account-defaults.example.json account-defaults.json`,
+   access is enough): 
+   ```
+   cp account-defaults.example.json account-defaults.json
+   ```
    then edit it. See the skill's `references/account-defaults.md` and the runbook
    prerequisites step. Real IBM Passport Advantage IDs are required for a real
    apply.

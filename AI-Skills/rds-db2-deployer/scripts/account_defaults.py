@@ -148,25 +148,24 @@ def missing_required_account_fields(defaults: Mapping[str, Any]) -> list[str]:
     """Return the account-level fields a deployable intent needs that are still
     absent from the defaults, so the agent knows exactly what to ask for.
 
-    A per-deployment intent REUSES existing networking, KMS, and monitoring, so
-    those identifiers must be present (the rendered root does not create them).
-    Listed fields, all required for a standard managed-password deployment:
-    ``region``, ``kms_key_id``, ``master_user_secret_kms_key_id``,
-    ``db_subnet_group_name``, ``vpc_security_group_ids``, ``monitoring_role_arn``,
-    and the IBM identifiers (which must never be fabricated).
+    Only the fields that can be neither created nor defaulted are hard-required:
+    ``region``, ``vpc_id`` (the skill never creates a VPC), ``vpc_security_group_ids``
+    (the security group is always customer-supplied), and the IBM identifiers
+    (which must never be fabricated; satisfied by the literal field OR its
+    ``*_ssm`` companion).
 
-    If any are absent, the agent either asks for them or points the customer at
-    the one-time bootstrap (apply ``1-networking`` / ``3-kms`` / ``2-iam`` in the
-    gitops account, then record the results). See ``references/account-defaults.md``.
+    The reusable account resources — ``kms_key_id``, ``db_subnet_group_name`` and
+    ``monitoring_role_arn`` (and the optional ``master_user_secret_kms_key_id``) —
+    are NOT listed here: leaving them blank tells the composer to CREATE them on
+    the first apply (via ``3-kms`` / ``1-networking`` / ``2-iam``); supplying a
+    value REUSES the existing resource (R10.5/10.6). Record the created
+    identifiers in account-defaults.json after the first deploy to reuse them for
+    every subsequent instance. See ``references/account-defaults.md``.
     """
     must_have = (
         "region",
         "vpc_id",
-        "kms_key_id",
-        "master_user_secret_kms_key_id",
-        "db_subnet_group_name",
         "vpc_security_group_ids",
-        "monitoring_role_arn",
     )
 
     def _present(f: str) -> bool:

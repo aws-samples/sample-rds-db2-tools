@@ -21,10 +21,8 @@
     "backup_retention_period",
     "publicly_accessible",
     "storage_encrypted",
-    "kms_key_id",
     "vpc_id",
     "vpc_security_group_ids",
-    "db_subnet_group_name",
     "db_parameter_group_name",
     "monitoring_interval",
     "enable_cloudwatch_logs_exports",
@@ -138,9 +136,8 @@
       "type": "boolean"
     },
     "kms_key_id": {
-      "description": "Customer-managed MRK CMK ARN/ID for storage encryption (R6.1).",
-      "type": "string",
-      "minLength": 1
+      "description": "Customer-managed MRK CMK ARN/ID for storage encryption (R6.1). Leave empty (or omit) to have the composer create a customer-managed multi-region (MRK) CMK via the 3-kms module on the first apply; supply an existing MRK CMK ARN/ID to reuse it (R10.5/10.6). A supplied key must be a customer-managed MRK (validated); a created key is always multi-region.",
+      "type": "string"
     },
     "vpc_security_group_ids": {
       "description": "Security group IDs attached to the instance.",
@@ -152,9 +149,8 @@
       "minItems": 1
     },
     "db_subnet_group_name": {
-      "description": "DB subnet group name (existing or to-be-created).",
-      "type": "string",
-      "minLength": 1
+      "description": "DB subnet group name. Leave empty (or omit) to have the composer create one from the VPC's subnets via the 1-networking module on the first apply; supply an existing subnet group name to reuse it (R10.5/10.6).",
+      "type": "string"
     },
     "vpc_id": {
       "description": "VPC ID the instance and its networking live in. Always customer-provided (the skill never creates a VPC); required by the 5-rds and 1-networking modules.",
@@ -201,18 +197,16 @@
       "minimum": 1
     },
     "monitoring_role_arn": {
-      "description": "IAM role ARN for Enhanced Monitoring. Required when monitoring_interval > 0 (R18.4).",
-      "type": "string",
-      "minLength": 1
+      "description": "IAM role ARN for Enhanced Monitoring. Leave empty (or omit) to have the composer create the enhanced-monitoring role via the 2-iam module on the first apply; supply an existing role ARN to reuse it (R10.5/10.6).",
+      "type": "string"
     },
     "manage_master_user_password": {
       "description": "When true, RDS manages the master password in Secrets Manager with master_user_secret_kms_key_id; mutually exclusive with a manual master_password (R18.5).",
       "type": "boolean"
     },
     "master_user_secret_kms_key_id": {
-      "description": "Customer-managed CMK ARN/ID for the RDS-managed master-user secret. Required when manage_master_user_password is true (R18.5).",
-      "type": "string",
-      "minLength": 1
+      "description": "Customer-managed CMK ARN/ID for the RDS-managed master-user secret (applies when manage_master_user_password is true). Leave empty (or omit) to mirror the storage CMK — the created MRK when kms_key_id is also blank, or the supplied storage CMK otherwise (R6.10/R10.6); supply a distinct CMK to encrypt the secret with a separate key.",
+      "type": "string"
     },
     "master_password": {
       "description": "Manually supplied master password. Mutually exclusive with the managed master password (R18.5).",
@@ -389,25 +383,7 @@
       }
     },
     {
-      "$comment": "R18.4: enhanced monitoring (monitoring_interval > 0) requires monitoring_role_arn.",
-      "if": {
-        "properties": {
-          "monitoring_interval": {
-            "minimum": 1
-          }
-        },
-        "required": [
-          "monitoring_interval"
-        ]
-      },
-      "then": {
-        "required": [
-          "monitoring_role_arn"
-        ]
-      }
-    },
-    {
-      "$comment": "R18.5: master password is exactly one of managed (manage_master_user_password=true + master_user_secret_kms_key_id) or manual (master_password).",
+      "$comment": "R18.5: master password is exactly one of managed (manage_master_user_password=true) or manual (master_password). The managed-secret CMK (master_user_secret_kms_key_id) is optional: when blank the composer mirrors the storage CMK (R10.6).",
       "oneOf": [
         {
           "properties": {
@@ -416,8 +392,7 @@
             }
           },
           "required": [
-            "manage_master_user_password",
-            "master_user_secret_kms_key_id"
+            "manage_master_user_password"
           ],
           "not": {
             "required": [

@@ -82,19 +82,19 @@ def test_valid_intent_passes_top_level_validate():
 def test_reports_every_missing_required_field():
     intent = _valid_intent()
     # Remove three always-required fields at once.
-    for f in ("region", "engine", "kms_key_id"):
+    for f in ("region", "engine", "vpc_id"):
         del intent[f]
 
     result = validate_schema(intent)
 
     assert not result.ok
     failed_fields = set(result.fields())
-    assert {"region", "engine", "kms_key_id"} <= failed_fields
+    assert {"region", "engine", "vpc_id"} <= failed_fields
     # Each was reported against the JSON Schema 'required' rule by name.
     required_failures = {
         e.field for e in result.errors if e.rule == "required"
     }
-    assert {"region", "engine", "kms_key_id"} <= required_failures
+    assert {"region", "engine", "vpc_id"} <= required_failures
 
 
 def test_reports_multiple_distinct_violations_together():

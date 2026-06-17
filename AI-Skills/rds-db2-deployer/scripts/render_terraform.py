@@ -137,7 +137,7 @@ DEFAULT_GIT_SUBDIR = "tools/rds-db2-terraform"
 #: aws-samples/sample-rds-db2-tools before the skill is published. ``v0.0.0`` is
 #: a deliberately invalid placeholder so an unset ref fails loudly at
 #: ``terraform init`` rather than silently pulling a wrong revision.
-DEFAULT_MODULE_REF = os.environ.get("RDS_DB2_MODULE_REF", "rds-db2-deployer-v0.2.0")
+DEFAULT_MODULE_REF = os.environ.get("RDS_DB2_MODULE_REF", "rds-db2-deployer-v0.3.0")
 
 #: The two supported module-source modes. ``"git"`` (default) emits the pinned
 #: git ref above — the production source of truth. ``"local"`` emits a relative
@@ -1594,6 +1594,64 @@ class BackendConfig:
         )
 
 
+#: 5-rds inputs that are satisfied by a freshly created sibling module's output
+#: when the corresponding resource is on the CREATE path (the intent field was
+#: left blank, R10.6). Maps the 5-rds variable -> (root module block name, that
+#: module's output name, the create-path module directory). When the create
+#: module is referenced in the rendered root AND the 5-rds value is not supplied,
+#: the instance consumes ``module.<block>.<output>`` instead of an empty literal
+#: (without this the single-root apply would leave 5-rds with a blank required
+#: input — e.g. db_subnet_group_name/monitoring_role_arn have no module default).
+#: When the resource is reused (the intent supplied an existing identifier) the
+#: create module is skipped, the value is a non-empty literal, and no wiring is
+#: emitted — so reuse and create are both correct from one table.
+RDS_CREATED_INPUT_WIRING: dict[str, tuple[str, str, str]] = {
+    "kms_key_arn": ("kms", "kms_key_arn", "3-kms"),
+    "db_subnet_group_name": ("networking", "db_subnet_group_name", "1-networking"),
+    "monitoring_role_arn": ("iam", "monitoring_role_arn", "2-iam"),
+    "parameter_group_name": (
+        "parameter_group",
+        "parameter_group_name",
+        "4-parameter-group",
+    ),
+}
+
+#: The 5-rds variable carrying the managed master-user-secret CMK. Left blank it
+#: mirrors the storage CMK (created or reused) so the CMK-everywhere invariant
+#: (R6.10) holds without a second key.
+MASTER_SECRET_CMK_VAR = "master_user_secret_kms_key_id"
+
+
+def rds_created_input_overrides(
+    rendered: Optional["RenderedModule"], referenced: list[str]
+) -> dict[str, str]:
+    """Raw-HCL wiring expressions for 5-rds inputs that consume freshly created
+    sibling-module outputs on the create path (R10.6).
+
+    Returns ``{5-rds variable: raw HCL expression}`` (e.g.
+    ``{"kms_key_arn": "module.kms.kms_key_arn"}``). An entry is produced only
+    when the create module is referenced in the rendered root AND the intent did
+    not supply an existing identifier for that resource (``_is_supplied`` is
+    False). Reuse (a supplied value) yields no entry, so the value is rendered as
+    its literal instead. The expressions are emitted verbatim (never passed
+    through :func:`format_hcl_value`, which would quote them).
+    """
+    vars_ = (rendered.variables if rendered else {}) or {}
+    overrides: dict[str, str] = {}
+    for var_name, (block, output, create_dir) in RDS_CREATED_INPUT_WIRING.items():
+        if create_dir in referenced and not _is_supplied(vars_.get(var_name)):
+            overrides[var_name] = f"module.{block}.{output}"
+    # master_user_secret_kms_key_id mirrors the storage CMK when left blank and
+    # the master password is RDS-managed (the only mode that uses the secret).
+    managed = vars_.get("manage_master_user_password", True)
+    if managed and not _is_supplied(vars_.get(MASTER_SECRET_CMK_VAR)):
+        if "3-kms" in referenced:
+            overrides[MASTER_SECRET_CMK_VAR] = "module.kms.kms_key_arn"
+        elif _is_supplied(vars_.get("kms_key_arn")):
+            overrides[MASTER_SECRET_CMK_VAR] = format_hcl_value(vars_["kms_key_arn"])
+    return overrides
+
+
 def render_root_module(
     enabled_modules: list[str],
     *,
@@ -1742,23 +1800,21 @@ def render_root_module(
         # values are also written to <module>/terraform.tfvars as the committed
         # record and for the policy gate.
         rendered = module_variables.get(module) if module_variables else None
+        # Create-path wiring (R10.6): 5-rds inputs whose resource the intent left
+        # blank consume the freshly created sibling module's output instead of an
+        # empty literal. Reused resources (supplied) produce no override.
+        overrides = (
+            rds_created_input_overrides(rendered, referenced)
+            if module == "5-rds"
+            else {}
+        )
         if rendered is not None and rendered.variables:
             for name in sorted(rendered.variables):
                 value = rendered.variables[name]
-                # Wire the instance to the parameter group created by the
-                # 4-parameter-group module (which carries the IBM IDs + DB2COMM=SSL)
-                # when the intent did not name an existing group. Without this the
-                # instance falls back to AWS's default group (no IBM IDs) and RDS
-                # rejects the BYOL create.
-                if (
-                    module == "5-rds"
-                    and name == "parameter_group_name"
-                    and (value in (None, ""))
-                    and "4-parameter-group" in referenced
-                ):
-                    lines.append(
-                        "  parameter_group_name = module.parameter_group.parameter_group_name"
-                    )
+                if name in overrides:
+                    # Raw HCL expression (e.g. module.kms.kms_key_arn) — emitted
+                    # verbatim, never quoted by format_hcl_value.
+                    lines.append(f"  {name} = {overrides[name]}")
                     continue
                 root = (sensitive_root_names or {}).get((module, name))
                 if root is not None:
@@ -1767,6 +1823,13 @@ def render_root_module(
                     lines.append(f"  {name} = var.{root}")
                 else:
                     lines.append(f"  {name} = {format_hcl_value(value)}")
+            # Wire create-path inputs that 5-rds requires but were ABSENT from the
+            # collected variables (no literal emitted above), so a required input
+            # with no module default (db_subnet_group_name/monitoring_role_arn) is
+            # never left unset on the create path.
+            for name in sorted(overrides):
+                if name not in rendered.variables:
+                    lines.append(f"  {name} = {overrides[name]}")
         else:
             lines.append(
                 f"  # inputs: see {module}/terraform.tfvars "

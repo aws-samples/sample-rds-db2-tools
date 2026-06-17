@@ -96,23 +96,33 @@ These three capabilities — self-managed AD, cross-region standby, read replica
 must be added to the modules **before** the corresponding optional capability is
 rendered, consistent with the unmapped-variable halt in R10.4 (R13.16).
 
-### Reuse-only root today; create = one-time bootstrap
+### Create-on-blank, reuse-on-value (R10.5/10.6) — wired into the instance
 
-The rendered root emits each enabled module as a bare `module` block plus its
-`terraform.tfvars`; it does **not** wire one module's outputs into another (e.g.
-`3-kms`'s `kms_key_arn` into `5-rds`). So a per-deployment intent **reuses**
-existing networking, KMS, and monitoring — their identifiers
-(`db_subnet_group_name`, `vpc_security_group_ids`, `kms_key_id`,
-`master_user_secret_kms_key_id`, `monitoring_role_arn`) are required and supplied
-(typically from `account-defaults.json`). The intent schema enforces this, so an
-intent omitting them halts at validation rather than rendering an unwired root.
+The rendered root is a single, self-contained plan: when a reusable resource is
+left blank in the intent, the composer **enables the create module AND wires its
+output into `5-rds`** so one `terraform apply` builds and consumes it. The
+`5-rds` create-path wiring (`render_terraform.RDS_CREATED_INPUT_WIRING`):
 
-When those resources don't exist yet, the gitops account applies the
-foundational modules **once** — `1-networking` (subnet group + SG), `3-kms` (MRK
-CMK(s)), `2-iam` (monitoring role) — as a bootstrap, then records the outputs in
-`account-defaults.json`. The `REUSE_RULES` create-path dispositions remain in the
-composer as latent capability for a future one-shot mode that also wires the
-create-module outputs into the instance (not enabled today).
+| Intent field blank | Create module rendered | `5-rds` input wired to |
+|---|---|---|
+| `kms_key_id` | `3-kms` (`multi_region_key=true`) | `kms_key_arn = module.kms.kms_key_arn` |
+| `db_subnet_group_name` | `1-networking` | `db_subnet_group_name = module.networking.db_subnet_group_name` |
+| `monitoring_role_arn` | `2-iam` | `monitoring_role_arn = module.iam.monitoring_role_arn` |
+| `db_parameter_group_name` | `4-parameter-group` | `parameter_group_name = module.parameter_group.parameter_group_name` |
+| `master_user_secret_kms_key_id` | (mirrors storage CMK) | created `module.kms.kms_key_arn` or the supplied storage CMK |
+
+When the intent **supplies** an existing identifier, the create module is skipped
+and the value is emitted as a literal (reuse) — so the rendered root is
+backward-compatible with the published blog's reuse pattern. The `vpc_id` and
+`vpc_security_group_ids` are **always supplied** (the skill never creates a VPC
+or security group).
+
+Because the created subnet group / CMK / monitoring role are **account-level,
+shared** resources with deterministic, `Project`-tag-keyed names, the intended
+pattern is: leave the fields blank on the **first** deployment to create them,
+record the created identifiers into `account-defaults.json`, then **reuse** them
+for every later deployment. Two concurrent blank first-time deployments with the
+same tag would collide — bootstrap once, then fan out.
 
 ## Optional capabilities (R13)
 
