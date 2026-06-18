@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rds-db2-provision-skill"
-version = "0.1.0"
+version = "0.3.1"
 description = "Terraform composer/orchestrator scripts for the rds-db2-provision-skill (resolvers, validator, VPC precheck, composer, policy gate)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,7 +25,15 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["scripts"]
+packages = ["scripts", "schemas"]
+
+[tool.setuptools.package-data]
+# Ship the JSON Schemas so an installed wheel (gitops CI uses
+# `pip install git+...#subdirectory=AI-Skills/rds-db2-deployer`) can resolve
+# `<package_root>/schemas/*.schema.json` at validation time. Without this the
+# schemas live only in a source checkout and `python -m scripts.validate_intent`
+# / `scripts.account_defaults` / `scripts.policy_gate` fail with FileNotFoundError.
+schemas = ["*.json"]
 
 [tool.pytest.ini_options]
 # Tests live alongside the scripts package.

@@ -6,6 +6,10 @@ __pycache__/
 .hypothesis/
 *.egg-info/
 
+# Python build artifacts (created by `pip install <path>` / `python -m build`)
+build/
+dist/
+
 # Runtime per-deployment outputs (keep the dir, ignore contents)
 artifacts/*/
 
