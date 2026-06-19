@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rds-db2-provision-skill"
-version = "0.3.2"
+version = "0.3.3"
 description = "Terraform composer/orchestrator scripts for the rds-db2-provision-skill (resolvers, validator, VPC precheck, composer, policy gate)."
 readme = "README.md"
 requires-python = ">=3.11"

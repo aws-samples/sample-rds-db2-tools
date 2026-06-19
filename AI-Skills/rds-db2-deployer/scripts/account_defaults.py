@@ -42,8 +42,10 @@ DEFAULT_FILENAME = "account-defaults.json"
 #: ``engine_major_version`` is consumed by the agent as the pinned major version
 #: (it flows into ``engine_version`` / ``db_parameter_group_family`` via live
 #: resolution), so it is not a 1:1 intent field and must not be merged directly.
+#: ``aws_profile`` is operator/agent credential wiring (a profile NAME used for
+#: live AWS reads and the local apply), never a Terraform/intent input.
 META_FIELDS: frozenset[str] = frozenset(
-    {"schema_version", "_about", "gitops_aws_account_id", "engine_major_version"}
+    {"schema_version", "_about", "gitops_aws_account_id", "engine_major_version", "aws_profile"}
 )
 
 
@@ -122,6 +124,24 @@ def engine_major_version_from_defaults(defaults: Mapping[str, Any]) -> Optional[
     this account default.
     """
     value = defaults.get("engine_major_version")
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value or None
+
+
+def aws_profile_from_defaults(defaults: Mapping[str, Any]) -> Optional[str]:
+    """Return the AWS profile name the agent/operator should use for LIVE AWS
+    calls, or ``None`` to fall back to ``AWS_PROFILE`` / the default chain.
+
+    This is a META field (a profile NAME, never a credential, never a Terraform
+    or intent input). The agent uses it for read-only live calls (engine-version
+    resolution, VPC precheck) and the operator uses it for the documented local
+    ``terraform apply`` (``AWS_PROFILE=<value>``). Precedence is the caller's
+    responsibility: this value, else the ``AWS_PROFILE`` environment variable,
+    else the default credential chain.
+    """
+    value = defaults.get("aws_profile")
     if value is None:
         return None
     value = str(value).strip()

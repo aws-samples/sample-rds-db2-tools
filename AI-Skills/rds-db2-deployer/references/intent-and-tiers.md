@@ -180,9 +180,20 @@ hyphen-normalized) — e.g. `…-gp3-saz-acme` for `Project=acme`. `Project` is
 trailing hyphen, which is stripped, losing the distinguishing token). Two
 deployments of the same shape under the same `Project` therefore produce the same
 identifier; to make them distinct, either change `Project` or supply an explicit
-`db_instance_identifier` in the prompt (it wins verbatim). The created
-**parameter group** name is derived from the resolved identifier, so it stays
-unique per deployment automatically.
+name (see below). The created **parameter group** name is derived from the
+resolved identifier, so it stays unique per deployment automatically.
+
+### Choosing your own instance name (`db_instance_identifier`)
+
+If you'd rather name the instance yourself, set `db_instance_identifier`. It is
+resolved in precedence order: the **prompt** ("deploy a dev sandbox named
+`db2-dev-1`") wins, then an account default `db_instance_identifier` in
+`account-defaults.json`, then the **auto-derived** self-describing name. Any
+supplied name must match the RDS format (1 leading letter, then letters/digits/
+hyphens, ≤ 63 chars) and is used verbatim (`user_provided`). Because
+`account-defaults.json` is shared across deployments, a single fixed name there
+suits a one-instance repo; to run several instances, **omit it** (keep the unique
+auto-derived names) or set the name per deployment in the prompt.
 
 ## Sources
 

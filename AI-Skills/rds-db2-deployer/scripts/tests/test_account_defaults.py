@@ -80,3 +80,45 @@ def test_create_on_blank_fields_accept_empty(tmp_path):
     })
     d = load_account_defaults(_write(tmp_path, doc))
     assert d["kms_key_id"] == ""
+
+
+# --- aws_profile (META) ----------------------------------------------------
+
+from scripts.account_defaults import aws_profile_from_defaults
+
+
+def test_aws_profile_surfaced_and_is_meta(tmp_path):
+    doc = _minimal(); doc["aws_profile"] = "burner"
+    d = load_account_defaults(_write(tmp_path, doc))
+    assert aws_profile_from_defaults(d) == "burner"
+    assert "aws_profile" not in intent_fields_from_defaults(d)  # never an intent field
+
+
+def test_aws_profile_empty_or_absent_is_none(tmp_path):
+    d1 = load_account_defaults(_write(tmp_path, _minimal()))
+    assert aws_profile_from_defaults(d1) is None
+    doc = _minimal(); doc["aws_profile"] = ""
+    d2 = load_account_defaults(_write(tmp_path, doc))
+    assert aws_profile_from_defaults(d2) is None
+
+
+# --- db_instance_identifier (optional, merged intent field) ----------------
+
+
+def test_db_instance_identifier_valid_is_merged(tmp_path):
+    doc = _minimal(); doc["db_instance_identifier"] = "db2-dev-1"
+    d = load_account_defaults(_write(tmp_path, doc))
+    assert intent_fields_from_defaults(d)["db_instance_identifier"] == "db2-dev-1"
+
+
+def test_db_instance_identifier_rejects_bad_format(tmp_path):
+    doc = _minimal(); doc["db_instance_identifier"] = "1-bad-start"  # must start with a letter
+    with pytest.raises(AccountDefaultsError):
+        load_account_defaults(_write(tmp_path, doc))
+
+
+def test_db_instance_identifier_rejects_empty(tmp_path):
+    # empty is rejected so an omitted field (auto-derive) is the only "no name" path
+    doc = _minimal(); doc["db_instance_identifier"] = ""
+    with pytest.raises(AccountDefaultsError):
+        load_account_defaults(_write(tmp_path, doc))

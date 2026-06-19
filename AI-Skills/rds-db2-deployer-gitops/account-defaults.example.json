@@ -13,5 +13,6 @@
   "ibm_customer_id_ssm": "/rds-db2/ibm-customer-id",
   "ibm_site_id_ssm": "/rds-db2/ibm-site-id",
   "tags": { "Project": "<REPLACE>", "Owner": "<REPLACE>" },
-  "gitops_aws_account_id": "<REPLACE-Account-ID>"
+  "gitops_aws_account_id": "<REPLACE-Account-ID>",
+  "aws_profile": ""
 }

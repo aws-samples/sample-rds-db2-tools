@@ -22,6 +22,24 @@ variables are required (R16.2). When no profile is named, the skill relies on th
 default credential chain — environment variables first, then the instance/
 container role — and does not require a named profile to exist (R16.3).
 
+## Where the profile comes from (account-defaults `aws_profile`)
+
+The agent does not guess or hardcode a profile. The profile name is resolved, in
+precedence order:
+
+1. an explicit **`aws_profile`** in `account-defaults.json` (a profile NAME, never
+   a credential) — the deterministic, repo-recorded choice;
+2. the **`AWS_PROFILE`** environment variable;
+3. the **default credential chain** (env vars / SSO / instance or container role).
+
+The agent uses the resolved profile for its read-only live calls (engine-version
+resolution, VPC precheck) and the operator uses the same profile for the
+documented **local** `terraform apply` (`AWS_PROFILE=<value> terraform apply`).
+In **CI** the profile is ignored — the apply job authenticates via GitHub OIDC
+(`RDS_DB2_DEPLOY_ROLE_ARN`), not a named profile. `aws_profile` is operator/
+machine-specific, so teams may prefer to leave it unset and rely on `AWS_PROFILE`
+per operator; it is offered for repos that want one pinned, recorded choice.
+
 ## Never paste secrets (R16.4)
 
 This is the security spine of the credential model. The skill:
