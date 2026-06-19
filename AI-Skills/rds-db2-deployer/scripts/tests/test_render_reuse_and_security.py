@@ -341,3 +341,40 @@ def test_render_with_security_invariants_is_deterministic(create_intent, terrafo
         copy.deepcopy(create_intent), modules_root=terraform_modules_root
     )
     assert first.files == second.files
+
+
+# ---------------------------------------------------------------------------
+# #3 collision fix: a CREATED parameter group gets a unique per-deployment name
+# derived from the instance identifier (so same-edition/tag redeploys never
+# collide on CreateDBParameterGroup), while a REUSED one is left untouched.
+# ---------------------------------------------------------------------------
+
+
+def test_created_parameter_group_gets_unique_name(create_intent, terraform_modules_root):
+    """When the PG is created (no db_parameter_group_name supplied), the composer
+    renders a unique name derived from the instance identifier."""
+    create_intent["db_instance_identifier"] = "db2se-12-1-t3-s-xs-gp3-saz-acme"
+    result = render_terraform(create_intent, modules_root=terraform_modules_root)
+    pg = result.modules["4-parameter-group"].variables
+    assert pg["parameter_group_name"] == "rds-db2-pg-db2se-12-1-t3-s-xs-gp3-saz-acme"
+
+
+def test_two_same_shape_creates_get_distinct_pg_names(create_intent, terraform_modules_root):
+    """Two create-path deployments that differ only by identifier produce
+    distinct parameter-group names (the collision class is closed)."""
+    a = dict(create_intent); a["db_instance_identifier"] = "db2se-12-1-t3-s-xs-gp3-saz-acme-a"
+    b = dict(create_intent); b["db_instance_identifier"] = "db2se-12-1-t3-s-xs-gp3-saz-acme-b"
+    ra = render_terraform(a, modules_root=terraform_modules_root)
+    rb = render_terraform(b, modules_root=terraform_modules_root)
+    na = ra.modules["4-parameter-group"].variables["parameter_group_name"]
+    nb = rb.modules["4-parameter-group"].variables["parameter_group_name"]
+    assert na != nb
+
+
+def test_reused_parameter_group_name_is_not_overridden(reuse_intent, terraform_modules_root):
+    """When an existing db_parameter_group_name is supplied (REUSE), the composer
+    does not inject a create-path name; 5-rds references the supplied group and
+    4-parameter-group is skipped entirely."""
+    result = render_terraform(reuse_intent, modules_root=terraform_modules_root)
+    assert "4-parameter-group" not in result.enabled_modules
+    assert result.modules["5-rds"].variables["parameter_group_name"] == "rds-db2-prod-pg"

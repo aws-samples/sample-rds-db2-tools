@@ -46,7 +46,7 @@ import os
 import re
 from dataclasses import dataclass, field as dataclass_field
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Mapping, MutableMapping, Optional, Union
 
 try:  # Prefer package-qualified import so helpers share identity with callers.
     from scripts.engine_versions import major_version_of
@@ -137,7 +137,7 @@ DEFAULT_GIT_SUBDIR = "tools/rds-db2-terraform"
 #: aws-samples/sample-rds-db2-tools before the skill is published. ``v0.0.0`` is
 #: a deliberately invalid placeholder so an unset ref fails loudly at
 #: ``terraform init`` rather than silently pulling a wrong revision.
-DEFAULT_MODULE_REF = os.environ.get("RDS_DB2_MODULE_REF", "rds-db2-deployer-v0.3.1")
+DEFAULT_MODULE_REF = os.environ.get("RDS_DB2_MODULE_REF", "rds-db2-deployer-v0.3.2")
 
 #: The two supported module-source modes. ``"git"`` (default) emits the pinned
 #: git ref above — the production source of truth. ``"local"`` emits a relative
@@ -1194,6 +1194,63 @@ def enforce_security_invariants(
             _force("1-networking", "publicly_accessible", False)
 
 
+def _unique_parameter_group_name(intent: Mapping[str, Any]) -> Optional[str]:
+    """Derive a unique, RDS-valid parameter-group name for a created PG (#3).
+
+    Uses the already-resolved, self-describing ``db_instance_identifier`` (which
+    encodes engine/major/class/size/storage/AZ/tag and conforms to the RDS
+    identifier rules) prefixed with ``rds-db2-pg-`` so every deployment gets a
+    distinct PG name and same-edition redeploys never collide. Returns ``None``
+    when no identifier is resolved yet (caller then leaves the name blank and the
+    module falls back to its own default).
+
+    The result is lowercased and truncated to the 255-char DB-parameter-group
+    limit, with any trailing hyphen stripped so it stays RDS-valid.
+    """
+    identifier = str(intent.get("db_instance_identifier") or "").strip().lower()
+    if not identifier:
+        return None
+    name = f"rds-db2-pg-{identifier}"
+    if len(name) > 255:
+        name = name[:255].rstrip("-")
+    return name
+
+
+def enforce_unique_parameter_group_name(
+    intent: Mapping[str, Any],
+    modules: MutableMapping[str, "RenderedModule"],
+    dispositions: Mapping[str, str],
+    *,
+    variable_index: Mapping[str, set[str]],
+) -> None:
+    """When the parameter group is on the CREATE path and no explicit name was
+    supplied, set ``4-parameter-group.parameter_group_name`` to a unique
+    per-deployment value (#3 collision fix).
+
+    No-op when the PG is being reused (an existing ``db_parameter_group_name``
+    was supplied → disposition REUSE → 4-parameter-group is skipped) or when the
+    module already carries a non-empty name. The variable is verified against the
+    module's real declared variables so a drift halts (R10.3/10.4).
+    """
+    module_name = "4-parameter-group"
+    if dispositions.get(module_name) != CREATE:
+        return
+    declared = variable_index.get(module_name, set())
+    if "parameter_group_name" not in declared:
+        raise FabricatedVariableError(
+            module_name, "parameter_group_name", "unique_pg_name"
+        )
+    rendered = modules.setdefault(
+        module_name, RenderedModule(module=module_name, variables={})
+    )
+    existing = rendered.variables.get("parameter_group_name")
+    if isinstance(existing, str) and existing.strip():
+        return  # an explicit name was supplied; respect it.
+    name = _unique_parameter_group_name(intent)
+    if name:
+        rendered.variables["parameter_group_name"] = name
+
+
 # ---------------------------------------------------------------------------
 # Optional-capability rendering (R13) — each gated on the resolved intent
 # ---------------------------------------------------------------------------
@@ -1961,6 +2018,18 @@ def render_terraform(
     render_optional_capabilities(intent, populated, variable_index=variable_index)
 
     enabled = select_enabled_modules(intent, populated)
+
+    # #3 collision fix: when the parameter group is CREATED (not reused), render a
+    # unique per-deployment name derived from the instance identifier instead of
+    # leaving it blank (which makes the 4-parameter-group module fall back to its
+    # non-unique default `rds-db2-pg-{family}-{tag}` — two same-edition/tag
+    # deployments would then collide on CreateDBParameterGroup). The name flows to
+    # the instance via the root wiring (5-rds.parameter_group_name =
+    # module.parameter_group.parameter_group_name), so only the create-path module
+    # needs the unique name. Composer-only; no module change.
+    enforce_unique_parameter_group_name(
+        intent, populated, dispositions, variable_index=variable_index
+    )
 
     # Single-root apply needs each child module's inputs wired as block arguments
     # (Terraform does not auto-load a child module's sibling tfvars). Sensitive

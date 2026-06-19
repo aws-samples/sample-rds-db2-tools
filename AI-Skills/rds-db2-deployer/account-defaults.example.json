@@ -2,6 +2,7 @@
   "schema_version": "1.0",
   "_about": "Copy this file to your gitops repo as 'account-defaults.json' and fill it ONCE from the AWS console (view access is enough). The agent reuses these for every RDS for Db2 deployment in this account; anything you say in a prompt overrides a default. db_subnet_group_name, kms_key_id and monitoring_role_arn are CREATE-OR-REUSE: leave the field empty (\"\") to have the skill create it on the first deploy (via 1-networking / 3-kms / 2-iam) and wire it into the instance, or set an existing name/ARN to reuse it. They are account-level shared resources, so create once on your first deployment, then record the created identifiers here and reuse them. master_user_secret_kms_key_id empty mirrors kms_key_id. vpc_id and vpc_security_group_ids are ALWAYS yours (the skill never creates a VPC/SG). No secrets go in this file.",
   "region": "us-east-1",
+  "engine_major_version": "12.1",
   "vpc_id": "vpc-REPLACE",
   "db_subnet_group_name": "REPLACE-with-your-db-subnet-group",
   "vpc_security_group_ids": ["sg-REPLACE"],

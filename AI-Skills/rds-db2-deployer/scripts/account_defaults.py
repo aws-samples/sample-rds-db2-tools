@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Iterable, Mapping, MutableMapping, Union
+from typing import Any, Iterable, Mapping, MutableMapping, Optional, Union
 
 from jsonschema.validators import Draft202012Validator
 
@@ -39,8 +39,11 @@ DEFAULT_SCHEMA_PATH = _PACKAGE_ROOT / "schemas" / "account-defaults.schema.json"
 DEFAULT_FILENAME = "account-defaults.json"
 
 #: Keys that exist for humans / tooling and must NOT be copied into the intent.
+#: ``engine_major_version`` is consumed by the agent as the pinned major version
+#: (it flows into ``engine_version`` / ``db_parameter_group_family`` via live
+#: resolution), so it is not a 1:1 intent field and must not be merged directly.
 META_FIELDS: frozenset[str] = frozenset(
-    {"schema_version", "_about", "gitops_aws_account_id"}
+    {"schema_version", "_about", "gitops_aws_account_id", "engine_major_version"}
 )
 
 
@@ -106,6 +109,23 @@ def intent_fields_from_defaults(defaults: Mapping[str, Any]) -> dict[str, Any]:
     ``Deployment_Intent`` field name -> value, ready to layer into an intent.
     """
     return {k: v for k, v in defaults.items() if k not in META_FIELDS}
+
+
+def engine_major_version_from_defaults(defaults: Mapping[str, Any]) -> Optional[str]:
+    """Return the account-default Db2 major version to pin (``"11.5"``/``"12.1"``),
+    or ``None`` when unset.
+
+    This is a META field (not a 1:1 intent field): the agent passes it to
+    :func:`resolve_intent.apply_engine_version_to_intent` as the
+    ``pinned_major_version`` so the live-resolved ``engine_version`` and
+    ``db_parameter_group_family`` reflect it. A prompt-supplied major overrides
+    this account default.
+    """
+    value = defaults.get("engine_major_version")
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value or None
 
 
 def merge_into_intent(

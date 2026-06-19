@@ -42,6 +42,10 @@ another" escape. Selecting an option is identical to typing it (same value, same
   deletion protection, and a mandatory explicit approval)
 - **Size?** ▶ `xsmall` · `small` · `medium` · `large` · `xlarge`
 - **Edition?** ▶ `db2-se` · `db2-ae` · `db2-ce`
+- **Db2 major version?** ▶ `12.1` (latest) · `11.5` — defaults to the
+  account's `engine_major_version` if set, else `12.1`. A prompt value wins.
+  Note `db2-ce` is **12.1-only**; the skill resolves the highest available minor
+  of the chosen major **live** from the RDS API (never fabricated).
 - **Master credentials?** ▶ Managed in Secrets Manager (recommended) · Supply a
   password manually
 - **Networking / KMS / monitoring?** ▶ Reuse the values in `account-defaults.json`
@@ -156,6 +160,29 @@ instance class, workload size, storage type, AZ posture, IOPS suffix, tag),
 normalized to the RDS identifier format `^[a-zA-Z][a-zA-Z0-9-]{0,62}$` (R20).
 The customer may override it, and the override is marked `user_provided` and
 stays exposed as a Terraform variable.
+
+### Engine major version (`engine_major_version`)
+
+The major version is resolved from, in precedence order: the **prompt** (e.g.
+"deploy an 11.5 dev sandbox"), then the account default `engine_major_version`
+in `account-defaults.json`, then `12.1` (current latest). The agent passes the
+chosen major to the resolver as the pinned major; the concrete **minor** is then
+read **live** from the RDS API (`resolve_engine_version`) and never fabricated.
+Valid families are a closed set — `db2-se-11.5`, `db2-se-12.1`, `db2-ae-11.5`,
+`db2-ae-12.1`, and `db2-ce-12.1` — so `db2-ce` with `11.5` is rejected with the
+supported list.
+
+### Making the identifier unique (the `Project` tag)
+
+The self-describing identifier ends with the **`Project` tag** (lower-cased,
+hyphen-normalized) — e.g. `…-gp3-saz-acme` for `Project=acme`. `Project` is
+**required and non-empty** in `account-defaults.json` (an empty tag would leave a
+trailing hyphen, which is stripped, losing the distinguishing token). Two
+deployments of the same shape under the same `Project` therefore produce the same
+identifier; to make them distinct, either change `Project` or supply an explicit
+`db_instance_identifier` in the prompt (it wins verbatim). The created
+**parameter group** name is derived from the resolved identifier, so it stays
+unique per deployment automatically.
 
 ## Sources
 
