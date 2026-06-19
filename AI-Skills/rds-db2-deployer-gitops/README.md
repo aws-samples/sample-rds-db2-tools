@@ -45,6 +45,7 @@ That's it. From then on you ask the agent ("deploy a dev sandbox"); it renders a
 .
 ├── account-defaults.example.json  # template — copy to account-defaults.json and fill
 ├── account-defaults.json          # the account basics, filled ONCE (you create this)
+├── bootstrap/                     # one-time Terraform: GitHub OIDC + deploy role (Phase B CI)
 ├── deployments/
 │   └── <db_instance_identifier>/  # ONE folder per instance (agent-rendered)
 │       ├── main.tf  security.tf
@@ -75,6 +76,14 @@ Modules are pulled from the published release tag — nothing is vendored here.
 | `RDS_DB2_MODULE_REF` | variable | release tag the modules + skill are pinned to (defaults to the published tag) |
 | `RDS_DB2_ENABLE_PLAN` | variable | `true` to enable the AWS `plan`/`apply` jobs (Phase B); unset = gate-only |
 | `RDS_DB2_DEPLOY_ROLE_ARN` | secret | OIDC role CI assumes to plan/apply |
+
+To enable Phase B (plan on PR, apply on merge) without long-lived keys, run the
+one-time [`bootstrap/`](bootstrap/) Terraform in an account you own — it creates
+the GitHub OIDC provider and the repo-scoped deploy role, then prints the role
+ARN to put in `RDS_DB2_DEPLOY_ROLE_ARN`. The workflow includes an `oidc_smoke`
+job that verifies the trust (zero cost) before any plan. Gate the `apply` job
+with a GitHub **Environment** reviewer for manual approval. Full walkthrough in
+the runbook's CI step.
 
 ## Notes
 

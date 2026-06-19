@@ -74,6 +74,21 @@ jobs:
       - name: Policy gate (5 discrete checks over the rendered Terraform)
         run: python -m scripts.policy_gate "${{ matrix.dir }}"
 
+  # 2b) OIDC SMOKE TEST (AWS, opt-in) — proves the GitHub->AWS trust works with
+  #     zero cost before any Terraform. Assumes the deploy role and prints the
+  #     caller identity. Runs on PRs when Phase B is enabled.
+  oidc_smoke:
+    needs: [discover, gate]
+    if: github.event_name == 'pull_request' && needs.discover.outputs.any == 'true' && vars.RDS_DB2_ENABLE_PLAN == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.RDS_DB2_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Who am I (OIDC trust check, no resources touched)
+        run: aws sts get-caller-identity
+
   # 3) PLAN (AWS, opt-in) — set repo variable RDS_DB2_ENABLE_PLAN=true to enable.
   plan:
     needs: [discover, gate]
