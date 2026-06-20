@@ -20,3 +20,8 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# Temporarily withheld from this PUBLIC repo pending an AppSec review
+# (re-add after sign-off). The working copy stays on disk locally; only the
+# public tracking is removed. See the rds-db2-deployer blog/runbook.
+AI-Skills/

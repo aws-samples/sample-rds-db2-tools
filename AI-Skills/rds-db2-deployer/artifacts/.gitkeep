@@ -1,3 +1,0 @@
-# Per-deployment outputs are written here at runtime under artifacts/<deployment-name>/
-# (resolved intent, plan summary, precheck report; Sensitive_Values masked).
-# Placeholder so the empty directory is tracked.
