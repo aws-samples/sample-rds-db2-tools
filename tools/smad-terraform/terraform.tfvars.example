@@ -1,0 +1,47 @@
+# =========================================================================
+# GovCloud (us-gov-east-1) example. Copy to terraform.tfvars and edit.
+#   cp terraform.tfvars.example terraform.tfvars
+# terraform.tfvars is git-ignored so your real VPC/subnet IDs never publish.
+#
+# For a commercial region, use commercial.tfvars.example instead.
+# =========================================================================
+
+aws_region  = "us-gov-east-1"
+aws_profile = "govcloud" # your named AWS CLI/SDK profile for this account
+
+name_prefix         = "selfmanaged-ad"
+domain_fqdn         = "corp.example.com" # CHANGE to your domain
+domain_netbios_name = "CORP"             # CHANGE to your NetBIOS name (<=15 chars)
+
+# ---- EXISTING VPC + subnets (this module does NOT create networking) ----
+# Replace with YOUR existing VPC and two PRIVATE subnets (one per AZ) that
+# have outbound internet via a NAT gateway. Discover them with the commands
+# in the README ("Discover your VPC, subnets, and AZs").
+vpc_id = "vpc-xxxxxxxxxxxxxxxxx" # CHANGE
+
+dc_subnet_ids = [
+  "subnet-aaaaaaaaaaaaaaaaa", # CHANGE: DC1 private subnet (AZ #1)
+  "subnet-bbbbbbbbbbbbbbbbb", # CHANGE: DC2 private subnet (AZ #2)
+]
+
+# Static private IPs for the DCs. Each MUST be inside its subnet's CIDR and
+# must not collide with an existing host or an AWS-reserved address
+# (first 4 + last in a subnet). Example for 10.0.128.0/20 and 10.0.144.0/20:
+dc1_private_ip = "10.0.128.10" # CHANGE to an IP inside dc_subnet_ids[0]
+dc2_private_ip = "10.0.144.10" # CHANGE to an IP inside dc_subnet_ids[1]
+
+# ---- RDS for Db2 self-managed AD integration ----
+ou_name          = "RDSDb2"    # OU created under the domain root
+svc_account_name = "rdsdb2svc" # delegated service account (sAMAccountName)
+
+# Optional: restrict the secret resource policy to a specific DB instance ARN.
+# Empty => arn:<partition>:rds:<region>:<account>:db:* (all instances).
+rds_db_arn_pattern = ""
+
+# ---- Compute ----
+instance_type    = "t3.large"
+root_volume_size = 60
+
+# Leave empty to manage DCs via SSM Fleet Manager (recommended).
+# Set to a specific admin CIDR to allow RDP. NEVER use 0.0.0.0/0.
+rdp_ingress_cidr = ""

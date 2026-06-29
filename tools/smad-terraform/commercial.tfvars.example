@@ -1,0 +1,35 @@
+# =========================================================================
+# COMMERCIAL region example. Usage:
+#   cp commercial.tfvars.example commercial.tfvars
+#   terraform plan  -var-file=commercial.tfvars
+#   terraform apply -var-file=commercial.tfvars
+#
+# Partition-agnostic: only region, profile, and the existing VPC/subnet IDs
+# differ from GovCloud. AMI (SSM parameter) and IAM ARNs resolve automatically.
+# =========================================================================
+
+aws_region  = "us-east-1"
+aws_profile = "default" # your named AWS CLI/SDK profile for this account
+
+name_prefix         = "selfmanaged-ad"
+domain_fqdn         = "corp.example.com" # CHANGE
+domain_netbios_name = "CORP"             # CHANGE
+
+# ---- EXISTING VPC + two private subnets (with NAT egress) ----
+vpc_id = "vpc-xxxxxxxxxxxxxxxxx" # CHANGE
+dc_subnet_ids = [
+  "subnet-aaaaaaaaaaaaaaaaa", # CHANGE: DC1 private subnet (AZ #1)
+  "subnet-bbbbbbbbbbbbbbbbb", # CHANGE: DC2 private subnet (AZ #2)
+]
+dc1_private_ip = "10.0.1.10" # CHANGE: inside dc_subnet_ids[0] CIDR
+dc2_private_ip = "10.0.2.10" # CHANGE: inside dc_subnet_ids[1] CIDR
+
+# ---- RDS for Db2 self-managed AD integration ----
+ou_name            = "RDSDb2"
+svc_account_name   = "rdsdb2svc"
+rds_db_arn_pattern = ""
+
+# ---- Compute ----
+instance_type    = "t3.large"
+root_volume_size = 60
+rdp_ingress_cidr = ""
