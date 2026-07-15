@@ -4,6 +4,9 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 
 ## 📚 Blog Articles & Guides
 
+### Product Announcements & Editions
+- [Announcing Amazon RDS for Db2 12.1 with Additional Community Edition](https://aws.amazon.com/blogs/database/announcing-amazon-rds-for-db2-12-1-with-additional-community-edition/)
+
 ### Migration & Replication
 - [Data Migration Strategies to Amazon RDS for DB2](https://aws.amazon.com/blogs/database/data-migration-strategies-to-amazon-rds-for-db2/)
 - [Near-Zero Downtime Migrations from Self-Managed DB2 to Amazon RDS for DB2 using IBM Q Replication](https://aws.amazon.com/blogs/database/near-zero-downtime-migrations-from-self-managed-db2-on-aix-or-windows-to-amazon-rds-for-db2-using-ibm-q-replication/)
@@ -18,6 +21,7 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 ### Security & Authentication
 - [Authenticate Amazon RDS for DB2 using On-Premises Microsoft Active Directory and Kerberos](https://aws.amazon.com/blogs/database/authenticate-amazon-rds-for-db2-instances-using-on-premises-microsoft-active-directory-and-kerberos/)
 - [Enable Kerberos Authentication with Amazon RDS for DB2](https://aws.amazon.com/blogs/database/enable-kerberos-authentication-with-amazon-rds-for-db2/)
+- [Enable Self-Managed AD Kerberos Authentication with Amazon RDS for Db2](https://aws.amazon.com/blogs/database/enable-self-managed-ad-kerberos-authentication-with-amazon-rds-for-db2/)
 - [Enhance Security with AWS Managed Microsoft AD](https://aws.amazon.com/blogs/modernizing-with-aws/enhance-security-of-your-aws-app-integration-with-aws-managed-microsoft-ad/)
 - [Create an SSL Connection to Amazon RDS for DB2 in Java without Keystore or Keytool](https://aws.amazon.com/blogs/database/create-an-ssl-connection-to-amazon-rds-for-db2-in-java-without-keystore-or-keytool/)
 
