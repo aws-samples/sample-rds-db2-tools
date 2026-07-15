@@ -1,0 +1,17 @@
+# Local dev environment / caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+*.egg-info/
+
+# Python build artifacts (created by `pip install <path>` / `python -m build`)
+build/
+dist/
+
+# Runtime per-deployment outputs (keep the dir, ignore contents)
+artifacts/*/
+
+# Private fact-gathering source — contains real IBM Passport Advantage IDs.
+0cr-ins.sh

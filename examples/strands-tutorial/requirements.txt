@@ -1,0 +1,25 @@
+# Strands hands-on tutorial dependencies
+# Python 3.10+ required
+
+strands-agents           # core SDK  -> from strands import Agent, tool
+strands-agents-tools     # prebuilt example tools -> from strands_tools import calculator, ...
+boto3                    # AWS SDK for the read-only RDS labs (Labs 3-5)
+
+# ---------------------------------------------------------------------------
+# Model provider extras (install ONLY the one you use)
+#
+# Amazon Bedrock (default) needs NOTHING extra — it ships with strands-agents.
+#
+# Ollama (local, free) needs the `ollama` client package. Install it with:
+#     pip install 'strands-agents[ollama]'
+# The line below does the same thing if you install this file with:
+#     pip install -r requirements.txt
+# ---------------------------------------------------------------------------
+strands-agents[ollama]   # pulls in the `ollama` client used when USE_OLLAMA=1
+
+# Lab 8 (evals): the Strands evaluation framework — LLM-as-judge, trajectory,
+# chaos testing, red-teaming, RCA. The judge models run on Bedrock by default.
+strands-agents-evals     # -> from strands_evals import Case, Experiment
+
+# Optional (Lab 6 observability): OpenTelemetry exporters if you want to ship traces
+# strands-agents[otel]

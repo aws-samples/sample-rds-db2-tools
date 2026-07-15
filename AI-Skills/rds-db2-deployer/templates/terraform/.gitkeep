@@ -1,0 +1,4 @@
+# The root Terraform module + tfvars templates that wire the existing
+# RDS-Db2-Terraform/ modules (0-backend-setup .. 6-license-manager) land here
+# (tasks 6 and 7). This directory references those modules as sources; it does
+# not copy them. Placeholder so the empty directory is tracked.

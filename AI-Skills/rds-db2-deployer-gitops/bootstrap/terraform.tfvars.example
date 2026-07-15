@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and fill, then `terraform apply` ONCE with your own
+# admin credentials (not CI). See ../README.md and the runbook's CI step.
+aws_region   = "us-east-1"
+github_owner = "<your-github-org-or-username>"
+github_repo  = "rds-db2-deployer-gitops"
+state_bucket = "<your-terraform-state-bucket>"
+
+# default_branch = "main"
+# role_name      = "rds-db2-gitops-deploy"
+# lock_table     = "rds-db2-terraform-lock"
+
+# If the account already has a GitHub OIDC provider:
+# create_oidc_provider       = false
+# existing_oidc_provider_arn = "arn:aws:iam::<acct>:oidc-provider/token.actions.githubusercontent.com"
