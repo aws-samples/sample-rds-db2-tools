@@ -846,3 +846,86 @@ def validate_intent(
     result.extend(validate_security_invariants(intent))  # 5.3 (R6/R7/R8/R13)
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# CLI — validate a committed deployment-intent.json (for CI)
+# ---------------------------------------------------------------------------
+
+
+def _main(argv: "list[str] | None" = None) -> int:
+    """CLI: validate a ``deployment-intent.json`` and report every failure.
+
+    Usage:
+        python -m scripts.validate_intent <intent.json> [--schema path]
+
+    Runs both validation layers via :func:`validate_intent` and prints the
+    field+rule report for every failure (R4.3). Exit 0 only when the intent is
+    valid, so a CI job can gate merge-to-apply on this command alongside
+    ``python -m scripts.policy_gate`` (R4.4/R12.4).
+
+    Exit codes:
+        0 — the intent passed both layers.
+        1 — the intent is invalid; every failure is reported on stdout.
+        2 — the intent could not be read or parsed (usage/IO error).
+    """
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Validate an rds-db2-deployer deployment intent (JSON Schema + "
+            "cross-field arithmetic + security invariants)."
+        )
+    )
+    parser.add_argument("intent_file", help="path to deployment-intent.json")
+    parser.add_argument(
+        "--schema",
+        default=None,
+        help=(
+            "optional path to an alternate Intent_Schema; defaults to the "
+            "package's published schema"
+        ),
+    )
+    args = parser.parse_args(argv)
+
+    intent_path = Path(args.intent_file)
+    if not intent_path.is_file():
+        print(f"error: intent file not found: {intent_path}", file=sys.stderr)
+        return 2
+
+    try:
+        intent = json.loads(intent_path.read_text())
+    except json.JSONDecodeError as exc:
+        print(f"error: {intent_path} is not valid JSON: {exc}", file=sys.stderr)
+        return 2
+
+    # A non-object document would fail Layer 1 on `type`, but say so plainly
+    # rather than emitting a schema error for what is really a usage mistake.
+    if not isinstance(intent, dict):
+        print(
+            f"error: {intent_path} must contain a JSON object, got "
+            f"{type(intent).__name__}",
+            file=sys.stderr,
+        )
+        return 2
+
+    result = validate_intent(intent, schema_path=args.schema)
+
+    if result.ok:
+        print(f"Deployment_Intent {intent_path} is VALID ✅")
+        return 0
+
+    # `report()` already renders the "N error(s); no Terraform artifacts will be
+    # produced" header plus one field+rule line per failure (R4.3).
+    print(result.report())
+    print(
+        f"\n{len(result.errors)} validation error(s) across "
+        f"{len(result.fields())} field(s) — rendering is blocked.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
