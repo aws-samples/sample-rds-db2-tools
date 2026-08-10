@@ -33,6 +33,27 @@ rds_truststore_url() {
 }
 
 # =============================================================================
+# JSON field extraction — works with or without jq
+# =============================================================================
+# jq is absent on minimal AMIs (e.g. Amazon Linux 2023), so never depend on it.
+# Resolution order: jq → python3 → sed.
+# Usage:  value=$(json_field password <<< "$json")
+json_field() {
+  local field="$1" data
+  data=$(</dev/stdin)   # bash builtin redirection — no external cat needed
+  [ -z "$data" ] && return 0
+  if command -v jq &>/dev/null; then
+    printf '%s' "$data" | jq -r --arg f "$field" '.[$f] // empty'
+  elif command -v python3 &>/dev/null; then
+    printf '%s' "$data" | python3 -c \
+      'import sys,json; print(json.load(sys.stdin).get(sys.argv[1],"") or "")' "$field" 2>/dev/null
+  else
+    printf '%s' "$data" \
+      | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+  fi
+}
+
+# =============================================================================
 # Kerberos / domain-join detection
 # =============================================================================
 # Sets IS_DOMAIN_JOINED=true and KRB_REALM=<realm> when the host is confirmed
@@ -163,9 +184,9 @@ set_credentials() {
     local token creds
     token=$(curl -sX PUT "http://127.0.0.1:1338/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
     creds=$(curl -s -H "Authorization: $token" "http://127.0.0.1:1338/latest/meta-data/container/security-credentials")
-    export AWS_ACCESS_KEY_ID=$(echo "$creds"     | jq -r .AccessKeyId)
-    export AWS_SECRET_ACCESS_KEY=$(echo "$creds" | jq -r .SecretAccessKey)
-    export AWS_SESSION_TOKEN=$(echo "$creds"     | jq -r .Token)
+    export AWS_ACCESS_KEY_ID=$(json_field AccessKeyId         <<< "$creds")
+    export AWS_SECRET_ACCESS_KEY=$(json_field SecretAccessKey <<< "$creds")
+    export AWS_SESSION_TOKEN=$(json_field Token               <<< "$creds")
     log_success "AWS credentials set from CloudShell"
     return
   fi
@@ -174,13 +195,18 @@ set_credentials() {
     log_info "Detected EC2 environment"
     local token role creds
     token=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-    role=$(curl -s -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/iam/security-credentials/)
-    creds=$(curl -s -H "X-aws-ec2-metadata-token: $token" "http://169.254.169.254/latest/meta-data/iam/security-credentials/$role")
-    export AWS_ACCESS_KEY_ID=$(echo "$creds"     | jq -r .AccessKeyId)
-    export AWS_SECRET_ACCESS_KEY=$(echo "$creds" | jq -r .SecretAccessKey)
-    export AWS_SESSION_TOKEN=$(echo "$creds"     | jq -r .Token)
-    log_success "AWS credentials set from EC2 instance role"
-    return
+    role=$(curl -s -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/iam/security-credentials/ | head -1)
+    if [ -n "$role" ]; then
+      creds=$(curl -s -H "X-aws-ec2-metadata-token: $token" "http://169.254.169.254/latest/meta-data/iam/security-credentials/$role")
+      export AWS_ACCESS_KEY_ID=$(json_field AccessKeyId         <<< "$creds")
+      export AWS_SECRET_ACCESS_KEY=$(json_field SecretAccessKey <<< "$creds")
+      export AWS_SESSION_TOKEN=$(json_field Token               <<< "$creds")
+      if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
+        log_success "AWS credentials set from EC2 instance role: $role"
+        return
+      fi
+    fi
+    log_warning "EC2 detected but no usable instance role credentials — falling back"
   fi
   # Fall back to configured profile
   if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
@@ -279,7 +305,7 @@ get_all_master_passwords() {
         --region "$REGION" \
         --query "SecretString" \
         --output text 2>/dev/null)
-      password=$(jq -r '.password' <<< "$secret_json")
+      password=$(json_field password <<< "$secret_json")
       if [ -n "$password" ]; then
         log_info "Retrieved password from Secrets Manager for $db_instance"
         MASTER_USER_PASSWORDS+=("$password")

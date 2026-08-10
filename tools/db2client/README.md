@@ -72,7 +72,7 @@ You must run two commands shown in the output of the tool.
 Complete the DSN creation process to connect to DB2 instance:
 
 1. Switch to the db2inst1 user: `sudo su - db2inst1`
-2. Run the script: `source db2-driver.sh`
+2. Run the script: `REGION=<your Region name> source db2client-configure.sh`
 
 The script does the following when you run it in user `db2inst1`.
 
@@ -90,7 +90,7 @@ When you run the curl command to run the script directly and the script does not
 
 If your curl command is unresponsive or times out, the VPC does not have a NAT Gateway attached to the private subnets. In this case, you can perform an offline/airgap installation. Refer to the README.txt file, which will be accessible when you execute the curl command on a machine with internet access.
 
-The script might fail if there are no proper IAM permissions available to the user running the script. Check the permissions required to run the script by using the following command:
+The script might fail if there are no proper IAM permissions available to the user running the script. Run the read-only pre-flight check before installing anything:
 
 ```
 curl -sL https://bit.ly/getdb2driver | bash -s -- --check-permissions
@@ -99,8 +99,14 @@ curl -sL https://bit.ly/getdb2driver | bash -s -- --check-permissions
 or
 
 ```
-./db2-driver.sh --check-permissions 
+REGION=<your Region name> ./db2-driver.sh --check-permissions
 ```
+
+The check installs and changes nothing. It reports PASS, FAIL, WARN or SKIP for host prerequisites (Linux, AWS CLI, `curl`, `tar`, `unzip`, `jq` or `python3`, passwordless `sudo`, free space on `/tmp`, and `libcrypt.so.1` which is absent on Amazon Linux 2023), AWS credential resolution, the IAM actions the tooling calls (`rds:DescribeDBInstances`, `rds:DescribeDBParameters`, `secretsmanager:GetSecretValue` plus `kms:Decrypt`), and whether the driver artifacts and RDS certificate bundle are reachable. In airgap mode it verifies each object exists in your private bucket instead.
+
+It exits 0 when everything required passed and 1 otherwise, so it can gate automation. When an IAM action is denied, it prints a ready-to-attach IAM policy listing exactly the missing actions. Add `--bucket <bucket>` to check the airgap flow, or `DB2_VER=12.1` to check the Db2 12.1 artifacts.
+
+**Note**: `jq` is no longer a prerequisite. Earlier versions of the installer failed on minimal images such as Amazon Linux 2023 that do not ship `jq`; the script now installs it when missing and falls back to `python3` or `sed` for JSON parsing.
 
 If you are using the master user password in Amazon Secrets Manager, you can use helper functions such as `get_master_user_password` available in `functions.sh` to populate `MASTER_USER_PASSWORD` environment variable. The script `functions.sh` is installed and sourced for the `db2inst1` user.
 

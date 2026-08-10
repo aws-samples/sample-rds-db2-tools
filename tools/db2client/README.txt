@@ -20,7 +20,37 @@ Step 1 — Download scripts (run on any machine with internet):
         ./db2-driver.sh          — RT client installer
         ./db2client-airgap.sh    — airgap bundle tool (for offline deployments)
 
-Step 2 — Install the RT client (run as root or ec2-user on the target machine):
+Step 2 (optional but recommended) — Pre-flight check:
+
+    REGION=us-east-1 ./db2-driver.sh --check-permissions
+
+    Or without saving the script first:
+
+        curl -sL https://bit.ly/getdb2driver | bash -s -- --check-permissions
+
+    This is read-only. It installs nothing and changes nothing. It reports
+    PASS / FAIL / WARN / SKIP for:
+
+        Host prerequisites   Linux, aws CLI, curl, tar, unzip, jq/python3,
+                             passwordless sudo, free space on /tmp,
+                             libcrypt.so.1 (needed on Amazon Linux 2023)
+        AWS credentials      region resolution, instance profile / env vars /
+                             named profile, sts:GetCallerIdentity
+        IAM permissions      rds:DescribeDBInstances, rds:DescribeDBParameters,
+                             secretsmanager:GetSecretValue (+ kms:Decrypt)
+                             — these are needed by db2client-configure.sh
+        Artifacts            reachability of the driver tar, scripts and the
+                             RDS certificate bundle (online mode), or the
+                             objects in your private bucket (airgap mode)
+
+    Exit code is 0 when everything required passed, 1 otherwise. When an IAM
+    action is denied, the check prints a ready-to-attach IAM policy containing
+    exactly the missing actions.
+
+    Add --bucket <bucket> (or BUCKET=<bucket>) to check the airgap flow, and
+    DB2_VER=12.1 to check the 12.1 artifacts.
+
+Step 3 — Install the RT client (run as root or ec2-user on the target machine):
 
     Db2 11.5 (default):
         REGION=us-east-1 ./db2-driver.sh
@@ -31,7 +61,7 @@ Step 2 — Install the RT client (run as root or ec2-user on the target machine)
     DB2_VER defaults to 11.5 if not set.
     On completion, the script prints the next command to run.
 
-Step 3 — Configure DSN entries (run as db2inst1):
+Step 4 — Configure DSN entries (run as db2inst1):
 
     sudo su - db2inst1
     REGION=us-east-1 source db2client-configure.sh
@@ -49,7 +79,7 @@ Step 3 — Configure DSN entries (run as db2inst1):
 
     On completion, the script prints the connect commands and next steps.
 
-Step 4 — Activate helper functions in the current session:
+Step 5 — Activate helper functions in the current session:
 
     source ~/.bashrc
     db2_help
@@ -74,9 +104,12 @@ Step 1 — On any machine WITH internet, download all artifacts:
         DB2_VER=12.1 ./db2client-airgap.sh --mode download --region <region>
 
     Downloads everything to ./db2client-artifacts/ including:
-        scripts/  — functions.sh, db2client-configure.sh, db211.5.9-tools.zip
+        scripts/  — functions.sh, db2client-configure.sh, db211.5-tools.zip
                     (or db212.1-tools.zip for Db2 12.1), jq
-        drivers/  — v11.5.9_linuxx64_rtcl.tar  (or v12.1.4_linuxx64_rtcl.tar.gz)
+        drivers/  — v11.5.9_linuxx64_rtcl.tar  (or v12.1.4_linuxx64_rtcl.tar)
+
+    Note: the tools zip is only staged when INCLUDE_LICENSED_TOOLS=TRUE.
+    For Graviton/arm64 targets, stage the matching jq: JQ_ARCH=arm64
         ssl/      — <region>-bundle.pem
 
 Step 2 — On a machine WITH AWS configured, upload to S3:
@@ -97,6 +130,11 @@ Step 3 — On the target machine (private subnet, AWS configured):
 
     aws s3 cp s3://db2client-artifacts-<account>-<region>/db2-driver.sh . && chmod +x db2-driver.sh
     export BUCKET=db2client-artifacts-<account>-<region> REGION=<region>
+
+    Optional pre-flight check — confirms every object was staged in the bucket
+    and that this host can read them, before installing anything:
+
+        ./db2-driver.sh --check-permissions
 
     Db2 11.5 (default):
         ./db2-driver.sh
