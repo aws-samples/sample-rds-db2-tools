@@ -54,6 +54,9 @@ A comprehensive collection of tools, scripts, and resources for working with Ama
 - **[RDS for Db2 Terraform Template](tools/rds-db2-terraform/)**: Modular Terraform template (seven numbered modules with shared remote state) for provisioning Amazon RDS for Db2 end-to-end — networking, IAM, KMS, parameter group, the RDS instance, and AWS License Manager BYOL tracking. Supports commercial and GovCloud (US) Regions. Companion to the [Deploying Amazon RDS for Db2 using Terraform](https://aws.amazon.com/blogs/database/deploying-amazon-rds-for-db2-using-terraform/) blog post.
 - **[End-to-End Trust Proxy](tools/End-to-End-Trust/)**: Modular Terraform template that deploys an OpenResty/Nginx-based TLS pass-through proxy on EC2 behind a Network Load Balancer, using SNI-based routing to direct multiple RDS for Db2 endpoints through a single set of client ports without modifying client connection strings. Includes remote state, ACM/Secrets Manager certificate handling, dynamic SSM-driven mappings, and a health-check module. Companion to the [Preserving Custom Domain Names for Amazon RDS for Db2](https://aws.amazon.com/blogs/database/preserving-custom-domain-names-for-amazon-rds-for-db2/) blog post.
 
+### Connectivity & Remote Access
+- **[RDP over AWS Systems Manager](examples/rdp-script/)**: Script and guide for opening a Remote Desktop session from macOS to a Windows EC2 jump host in a private subnet through a Session Manager port forwarding tunnel. No public IP, inbound security group rule, bastion host or VPN required. Includes a least-privilege IAM policy, a hardened credential-free `.rdp` profile, and session auditing guidance.
+
 ### Security Tools
 - **Coming Soon**: Kerberos configuration helpers
 - **Coming Soon**: VPC setup automation
