@@ -131,7 +131,7 @@ db2_show_env() {
   echo "  DB_DSN             : ${DB_DSN:-<not set>}"
   echo "  DB_SSL_DSN         : ${DB_SSL_DSN:-<not set>}"
   echo "  MASTER_USER_NAME   : ${MASTER_USER_NAME:-<not set>}"
-  echo "  MASTER_USER_PASSWORD: ${MASTER_USER_PASSWORD:+<set>}${MASTER_USER_PASSWORD:-<not set>}"
+  echo "  MASTER_USER_PASSWORD: $([ -n "${MASTER_USER_PASSWORD:-}" ] && echo "<set>" || echo "<not set>")"
 }
 # Switch active instance — fetches fresh password, rewrites ~/.db2env
 # Usage: db2_use [instance-id]
@@ -281,7 +281,7 @@ db2_test_connection() {
   echo "  DB2 Connection Diagnostics"
   echo "  DSN             : $dsn"
   echo "  User            : ${MASTER_USER_NAME:-<not set>}"
-  echo "  Password        : ${MASTER_USER_PASSWORD:+<set>}${MASTER_USER_PASSWORD:-<not set>}"
+  echo "  Password        : $([ -n "${MASTER_USER_PASSWORD:-}" ] && echo "<set>" || echo "<not set>")"
   echo "  DB_INSTANCE_ID  : ${DB_INSTANCE_ID:-<not set>}"
   echo "============================================================================"
 
